@@ -2289,7 +2289,7 @@ document.getElementById('bgColor').addEventListener('input', (e) => {
 /* ---------- Сброс ---------- */
 document.getElementById('btnReset').addEventListener('click', () => {
     document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
-  }
+  
   glassWalls = true;
   document.getElementById('btnGlass').classList.add('active');
   controls.autoRotate = false;
