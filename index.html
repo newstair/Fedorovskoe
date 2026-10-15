@@ -692,6 +692,7 @@
     <span class="ico">📄</span> Бланк заказа
   </button>
 
+  
    <!-- ═══ Настройки просмотра ═══ -->
   <div class="acc" id="accView">
     <button class="acc-header" type="button">
@@ -699,27 +700,95 @@
       <span class="arrow">▶</span>
     </button>
     <div class="acc-body">
-      <div class="row">
-        <button class="btn active" id="el_treads"><span class="ico">🪵</span> Ступени</button>
-        <button class="btn active" id="el_risers"><span class="ico">📐</span> Подступенки</button>
+
+      <!-- Лестница 1→2 -->
+      <div class="view-group">
+        <div class="view-group-title">Лестница 1→2</div>
+        <div class="row">
+          <button class="btn active" id="el_s1_treads"><span class="ico">🪵</span> Ступени</button>
+          <button class="btn active" id="el_s1_risers"><span class="ico">📐</span> Подступ.</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s1_stringers"><span class="ico">🏗</span> Тетивы</button>
+          <button class="btn active" id="el_s1_kosour"><span class="ico">📏</span> Косоуры</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s1_welcome_steps"><span class="ico">🌀</span> Пригл. ст.</button>
+          <button class="btn active" id="el_s1_welcome_risers"><span class="ico">🌀</span> Пригл. пд.</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s1_handrail"><span class="ico">➖</span> Поручень</button>
+          <button class="btn active" id="el_s1_baluster"><span class="ico">🪜</span> Балясины</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s1_posts"><span class="ico">🏛</span> Столбы</button>
+          <button class="btn active" id="el_s1_covering"><span class="ico">📏</span> Панель</button>
+        </div>
       </div>
-      <div class="row">
-        <button class="btn active" id="el_stringers"><span class="ico">🏗</span> Тетивы</button>
-        <button class="btn active" id="el_handrail"><span class="ico">➖</span> Поручень</button>
+
+      <!-- Лестница 2→3 -->
+      <div class="view-group">
+        <div class="view-group-title">Лестница 2→3</div>
+        <div class="row">
+          <button class="btn active" id="el_s2_treads"><span class="ico">🪵</span> Ступени</button>
+          <button class="btn active" id="el_s2_risers"><span class="ico">📐</span> Подступ.</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s2_stringers"><span class="ico">🏗</span> Тетивы</button>
+          <button class="btn active" id="el_s2_kosour"><span class="ico">📏</span> Косоуры</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s2_welcome_steps"><span class="ico">🌀</span> Пригл. ст.</button>
+          <button class="btn active" id="el_s2_welcome_risers"><span class="ico">🌀</span> Пригл. пд.</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s2_handrail"><span class="ico">➖</span> Поручень</button>
+          <button class="btn active" id="el_s2_baluster"><span class="ico">🪜</span> Балясины</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_s2_posts"><span class="ico">🏛</span> Столбы</button>
+          <button class="btn active" id="el_s2_covering"><span class="ico">📏</span> Панель</button>
+        </div>
       </div>
-      <div class="row">
-        <button class="btn active" id="el_baluster"><span class="ico">🪜</span> Балясины</button>
-        <button class="btn active" id="el_posts"><span class="ico">🏛</span> Столбы</button>
+
+      <!-- Ограждение 2 этажа -->
+      <div class="view-group">
+        <div class="view-group-title">Ограждение 2 этажа</div>
+        <div class="row">
+          <button class="btn active" id="el_r2_handrail"><span class="ico">➖</span> Поручень</button>
+          <button class="btn active" id="el_r2_bottomrail"><span class="ico">🪵</span> Подбаляс.</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_r2_baluster"><span class="ico">🪜</span> Балясины</button>
+        </div>
       </div>
-      <div class="row">
-        <button class="btn active" id="el_wall"><span class="ico">🧱</span> Стена</button>
-        <button class="btn active" id="el_opening"><span class="ico">🪟</span> Проём</button>
+
+      <!-- Ограждение 3 этажа -->
+      <div class="view-group">
+        <div class="view-group-title">Ограждение 3 этажа</div>
+        <div class="row">
+          <button class="btn active" id="el_r3_posts"><span class="ico">🏛</span> Столбы</button>
+          <button class="btn active" id="el_r3_handrail"><span class="ico">➖</span> Поручень</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="el_r3_bottomrail"><span class="ico">🪵</span> Подбаляс.</button>
+          <button class="btn active" id="el_r3_baluster"><span class="ico">🪜</span> Балясины</button>
+        </div>
       </div>
-      <div class="row">
-        <button class="btn active" id="el_covering"><span class="ico">📏</span> Панель</button>
-        <button class="btn active" id="el_floor"><span class="ico">🌳</span> Пол</button>
-        <button class="btn active" id="btnGlass"><span class="ico">◇</span> Стекло</button>
+
+      <!-- Прочее -->
+      <div class="view-group">
+        <div class="view-group-title">Прочее</div>
+        <div class="row">
+          <button class="btn active" id="el_wall"><span class="ico">🧱</span> Стена</button>
+          <button class="btn active" id="el_opening"><span class="ico">🪟</span> Проём</button>
+          <button class="btn active" id="el_floor"><span class="ico">🌳</span> Пол</button>
+        </div>
+        <div class="row">
+          <button class="btn active" id="btnGlass"><span class="ico">◇</span> Стекло</button>
+        </div>
       </div>
+
     </div>
   </div>
 
