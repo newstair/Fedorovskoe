@@ -692,8 +692,7 @@
     <span class="ico">📄</span> Бланк заказа
   </button>
 
-  
-   <!-- ═══ Настройки просмотра ═══ -->
+    <!-- ═══ Настройки просмотра ═══ -->
   <div class="acc" id="accView">
     <button class="acc-header" type="button">
       <span><span class="ico">👁</span> Настройки просмотра</span>
@@ -1143,17 +1142,36 @@ let objectUrls   = [];
 const fileMap    = new Map();
 
 const elementGroups = {
-  treads: [], risers: [], stringers: [], kosour: [],
-  welcome_steps: [], welcome_risers: [],
-  handrail: [], baluster: [], posts: [],
-  wall: [], covering: [], floor: [],
+  // Лестница 1→2
+  s1_treads: [], s1_risers: [], s1_stringers: [], s1_kosour: [],
+  s1_welcome_steps: [], s1_welcome_risers: [],
+  s1_handrail: [], s1_baluster: [], s1_posts: [], s1_covering: [],
+  // Лестница 2→3
+  s2_treads: [], s2_risers: [], s2_stringers: [], s2_kosour: [],
+  s2_welcome_steps: [], s2_welcome_risers: [],
+  s2_handrail: [], s2_baluster: [], s2_posts: [], s2_covering: [],
+  // Ограждение 2 этажа
+  r2_handrail: [], r2_bottomrail: [], r2_baluster: [],
+  // Ограждение 3 этажа
+  r3_posts: [], r3_handrail: [], r3_bottomrail: [], r3_baluster: [],
+  // Прочее
+  wall: [], opening: [], floor: [],
 };
 
 const elementVisible = {
-  treads: true, risers: true, stringers: true, kosour: true,
-  welcome_steps: true, welcome_risers: true,
-  handrail: true, baluster: true, posts: true,
-  wall: true, covering: true, floor: true,
+  s1_treads: true, s1_risers: true, s1_stringers: true, s1_kosour: true,
+  s1_welcome_steps: true, s1_welcome_risers: true,
+  s1_handrail: true, s1_baluster: true, s1_posts: true, s1_covering: true,
+
+  s2_treads: true, s2_risers: true, s2_stringers: true, s2_kosour: true,
+  s2_welcome_steps: true, s2_welcome_risers: true,
+  s2_handrail: true, s2_baluster: true, s2_posts: true, s2_covering: true,
+
+  r2_handrail: true, r2_bottomrail: true, r2_baluster: true,
+
+  r3_posts: true, r3_handrail: true, r3_bottomrail: true, r3_baluster: true,
+
+  wall: true, opening: true, floor: true,
 };
 
 let glassWalls = true;
@@ -1194,19 +1212,62 @@ const allVertices = [];
    ═══════════════════════════════════════════════════════════════ */
 function classifyMaterial(matName) {
   if (!matName) return null;
+
+  // 1. Свободный столб ограждения этажа (N_P1, N_P2, ...)
+  let m = matName.match(/^([123])_P\d/i);
+  if (m) return 'r' + m[1] + '_posts';
+
+  // 2. Поручень ограждения этажа (N_HRFR...)
+  m = matName.match(/^([123])_HRFR/i);
+  if (m) return 'r' + m[1] + '_handrail';
+
+  // 3. Подбалясенник ограждения этажа (N_BRFR...)
+  m = matName.match(/^([123])_BRFR/i);
+  if (m) return 'r' + m[1] + '_bottomrail';
+
+  // 4. Балясины ограждения этажа (N_Ba1FR11, N_Ba2FR21...)
+  m = matName.match(/^([123])_BA\d*FR/i);
+  if (m) return 'r' + m[1] + '_baluster';
+
+  // 5. Столбы лестницы (SP1-2L, StPR, EnPR)
+  m = matName.match(/^([12])_(SP|STPR|ENPR)/i);
+  if (m) return 's' + m[1] + '_posts';
+
+  // 6. Тетива лестницы (St1L, St2R)
+  m = matName.match(/^([12])_ST/i);
+  if (m) return 's' + m[1] + '_stringers';
+
+  // 7. Ступени
+  m = matName.match(/^([12])_TR/i);
+  if (m) return 's' + m[1] + '_treads';
+
+  // 8. Подступенки
+  m = matName.match(/^([12])_RI/i);
+  if (m) return 's' + m[1] + '_risers';
+
+  // 9. Поручень лестницы (HRR, не HRFR — HRFR уже отловлен)
+  m = matName.match(/^([12])_HRR/i);
+  if (m) return 's' + m[1] + '_handrail';
+
+  // 10. Балясины лестницы (Ba1R1R, Ba2R3R — без FR)
+  m = matName.match(/^([12])_BA/i);
+  if (m) return 's' + m[1] + '_baluster';
+
+  // 11. Обшивка проёма
+  m = matName.match(/^([12])_FC/i);
+  if (m) return 's' + m[1] + '_covering';
+
+  // Fallback для старых имён материалов DAE
   const n = matName.toUpperCase();
-  if (n.includes('TREAD'))         return 'treads';
-  if (n.includes('RISER'))         return 'risers';
-  if (n.includes('STRING'))        return 'stringers';
-  if (n.includes('KOSOUR'))        return 'kosour';
-  if (n.includes('WELCOME_STEP') || n.includes('BEGIN_STEP'))  return 'welcome_steps';
-  if (n.includes('WELCOME_RIS') || n.includes('BEGIN_RIS'))    return 'welcome_risers';
-  if (n.includes('HANDRAIL'))      return 'handrail';
-  if (n.includes('BOTTOMRAIL'))    return 'handrail';
-  if (n.includes('BALUSTER'))      return 'baluster';
-  if (n.includes('POST'))          return 'posts';
+  if (n.includes('TREAD'))         return 's1_treads';
+  if (n.includes('RISER'))         return 's1_risers';
+  if (n.includes('STRING'))        return 's1_stringers';
+  if (n.includes('HANDRAIL'))      return 's1_handrail';
+  if (n.includes('BOTTOMRAIL'))    return 'r2_bottomrail';
+  if (n.includes('BALUSTER'))      return 's1_baluster';
+  if (n.includes('POST'))          return 's1_posts';
   if (n.includes('BEGIN_WALL'))    return 'wall';
-  if (n.includes('BEGIN_OPENING')) return 'covering';
+  if (n.includes('BEGIN_OPENING')) return 's1_covering';
   if (n.includes('PARKETT'))       return 'floor';
   if (n.includes('ASH'))           return 'floor';
   if (n.includes('OBJECT3D'))      return 'floor';
@@ -2091,19 +2152,45 @@ function bindElementButton(id, key) {
     applyElementVisibility();
   });
 }
-bindElementButton('el_treads',          'treads');
-bindElementButton('el_risers',          'risers');
-bindElementButton('el_stringers',       'stringers');
-bindElementButton('el_kosour',          'kosour');
-bindElementButton('el_welcome_steps',   'welcome_steps');
-bindElementButton('el_welcome_risers',  'welcome_risers');
-bindElementButton('el_handrail',        'handrail');
-bindElementButton('el_baluster',        'baluster');
-bindElementButton('el_posts',           'posts');
-bindElementButton('el_wall',            'wall');
-bindElementButton('el_opening',         'covering');
-bindElementButton('el_covering',        'covering');
-bindElementButton('el_floor',           'floor');
+const elementButtonMap = [
+  // Лестница 1→2
+  ['el_s1_treads', 's1_treads'],
+  ['el_s1_risers', 's1_risers'],
+  ['el_s1_stringers', 's1_stringers'],
+  ['el_s1_kosour', 's1_kosour'],
+  ['el_s1_welcome_steps', 's1_welcome_steps'],
+  ['el_s1_welcome_risers', 's1_welcome_risers'],
+  ['el_s1_handrail', 's1_handrail'],
+  ['el_s1_baluster', 's1_baluster'],
+  ['el_s1_posts', 's1_posts'],
+  ['el_s1_covering', 's1_covering'],
+  // Лестница 2→3
+  ['el_s2_treads', 's2_treads'],
+  ['el_s2_risers', 's2_risers'],
+  ['el_s2_stringers', 's2_stringers'],
+  ['el_s2_kosour', 's2_kosour'],
+  ['el_s2_welcome_steps', 's2_welcome_steps'],
+  ['el_s2_welcome_risers', 's2_welcome_risers'],
+  ['el_s2_handrail', 's2_handrail'],
+  ['el_s2_baluster', 's2_baluster'],
+  ['el_s2_posts', 's2_posts'],
+  ['el_s2_covering', 's2_covering'],
+  // Ограждение 2 этажа
+  ['el_r2_handrail', 'r2_handrail'],
+  ['el_r2_bottomrail', 'r2_bottomrail'],
+  ['el_r2_baluster', 'r2_baluster'],
+  // Ограждение 3 этажа
+  ['el_r3_posts', 'r3_posts'],
+  ['el_r3_handrail', 'r3_handrail'],
+  ['el_r3_bottomrail', 'r3_bottomrail'],
+  ['el_r3_baluster', 'r3_baluster'],
+  // Прочее
+  ['el_wall', 'wall'],
+  ['el_opening', 'opening'],
+  ['el_floor', 'floor'],
+];
+
+elementButtonMap.forEach(([id, key]) => bindElementButton(id, key));
 
 document.getElementById('btnGlass').addEventListener('click', (e) => {
   glassWalls = !glassWalls;
@@ -2201,10 +2288,7 @@ document.getElementById('bgColor').addEventListener('input', (e) => {
 
 /* ---------- Сброс ---------- */
 document.getElementById('btnReset').addEventListener('click', () => {
-  for (const k in elementVisible) elementVisible[k] = true;
-  for (const k in elementVisible) {
-    const btn = document.getElementById('el_' + k);
-    if (btn) btn.classList.add('active');
+    document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
   }
   glassWalls = true;
   document.getElementById('btnGlass').classList.add('active');
