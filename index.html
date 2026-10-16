@@ -3197,25 +3197,25 @@ let dxfLoadPromise = null;
 async function loadAllDXF(progressCb) {
   if (dxfLoadPromise) return dxfLoadPromise;
   dxfLoadPromise = (async () => {
-    if (!bomData || !bomData.items) return;
-    const grouped = classifyBOMItems();
+    if (!bomGroups || !bomGroups.length) return;
 
-    /* Категории, которые считаем из DXF */
-    const flatCats = ['treads', 'risers', 'stringers', 'kosour',
-                      'welcome_steps', 'welcome_risers',
-                      'handrail', 'covering'];
+    /* Собираем ВСЕ имена деталей из ВСЕХ XML-групп */
+    const allNames = new Set();
+    bomGroups.forEach(group => {
+      const classified = classifyBOMItems(group.items, group.floor);
 
-    const toLoad = [];
-    const seen = new Set();
-    flatCats.forEach(catKey => {
-      (grouped[catKey] || []).forEach(d => {
-        if (!d.name) return;
-        if (d.name.endsWith('End')) return;
-        if (seen.has(d.name)) return;
-        seen.add(d.name);
-        toLoad.push(d.name);
+      ['stair', 'railing'].forEach(section => {
+        for (const catKey in classified[section]) {
+          (classified[section][catKey] || []).forEach(d => {
+            if (!d.name) return;
+            if (d.name.endsWith('End')) return;
+            allNames.add(d.name);
+          });
+        }
       });
     });
+
+    const toLoad = Array.from(allNames);
 
     console.log('%c→ Загрузка ' + toLoad.length + ' DXF...',
                 'color:#5b8cff;font-weight:bold');
