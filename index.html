@@ -1201,8 +1201,8 @@ const currentFinish = {
 };
 
 /* ---------- Данные ---------- */
-let priceData = null;   // из price.json
-let bomData   = null;   // из XML (Staircon): { items, params }
+let bomData = null;       // обратная совместимость (первый XML)
+let bomGroups = [];       // массив всех XML с этажами
 
 /* ---------- Точки для привязки линейки ---------- */
 const allVertices = [];
@@ -1501,6 +1501,7 @@ function parseBOM(xmlText) {
     handrailDim:   txt('handrail > dim'),
     balusterDim:   txt('baluster > dim'),
     newelName:     txt('newel > name'),
+        floorName:     txt('floor > name'),
   };
 
   const details = xml.querySelectorAll('detail');
@@ -1531,19 +1532,80 @@ function parseBOM(xmlText) {
 }
 
 async function loadBOM() {
-  const bomFile = MODEL_FILE.replace(/\.(dae|xml)$/i, '.xml');
+  bomGroups = [];
+
+  // 1. Ищем все .xml через GitHub API
+  let xmlFiles = [];
   try {
-    const r = await fetch(bomFile, { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const buf = await r.arrayBuffer();
-    const decoder = new TextDecoder('windows-1252');
-    const text = decoder.decode(buf);
-    bomData = parseBOM(text);
-    console.log('%c✔ BOM загружен: ' + bomData.items.length + ' деталей',
-                'color:#31d0aa;font-weight:bold');
-  } catch (err) {
-    console.log('BOM не найден (' + bomFile + '):', err.message);
-    bomData = null;
+    const parts = location.pathname.split('/').filter(x => x);
+    const owner = location.hostname.split('.')[0];
+    const repo = parts[0];
+    if (owner && repo) {
+      const r = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/');
+      if (r.ok) {
+        const files = await r.json();
+        xmlFiles = files
+          .filter(f => f.name && f.name.toLowerCase().endsWith('.xml'))
+          .map(f => f.name);
+      }
+    }
+  } catch (e) {
+    console.warn('GitHub API не сработал:', e.message);
+  }
+
+  // 2. Fallback: если API не сработал, попробовать стандартный путь
+  if (!xmlFiles.length && MODEL_FILE) {
+    const fallback = MODEL_FILE.replace(/\.(dae|xml)$/i, '.xml');
+    try {
+      const r = await fetch(fallback, { method: 'HEAD' });
+      if (r.ok) xmlFiles = [fallback];
+    } catch (e) { /* ignore */ }
+  }
+
+  if (!xmlFiles.length) {
+    console.log('XML не найдены');
+    return;
+  }
+
+  console.log('%c→ Найдено XML: ' + xmlFiles.length, 'color:#5b8cff;font-weight:bold');
+
+  // 3. Парсим каждый
+  for (const name of xmlFiles) {
+    try {
+      const r = await fetch(name, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const buf = await r.arrayBuffer();
+      const decoder = new TextDecoder('windows-1252');
+      const text = decoder.decode(buf);
+      const parsed = parseBOM(text);
+
+      // Определяем этаж из params.floorName
+      let floor = 1;
+      if (parsed.params && parsed.params.floorName) {
+        const m = parsed.params.floorName.match(/(\d+)/);
+        if (m) floor = parseInt(m[1], 10);
+      }
+
+      bomGroups.push({
+        file: name,
+        floor: floor,
+        params: parsed.params,
+        items: parsed.items
+      });
+
+      console.log('%c✔ ' + name + ' (этаж ' + floor + ', ' + parsed.items.length + ' деталей)',
+                  'color:#31d0aa;font-weight:bold');
+    } catch (err) {
+      console.warn('Ошибка чтения ' + name + ':', err.message);
+    }
+  }
+
+  // 4. Сортируем по этажу
+  bomGroups.sort((a, b) => a.floor - b.floor);
+
+  // 5. Обратная совместимость: bomData = первый XML
+  if (bomGroups.length) {
+    bomData = { items: bomGroups[0].items, params: bomGroups[0].params };
   }
 }
 
@@ -2446,16 +2508,27 @@ function applyFinish(categoryKey) {
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ BOM-ЭЛЕМЕНТОВ
    ═══════════════════════════════════════════════════════════════ */
-function classifyBOMItems() {
-  if (!bomData) return {};
-  const grouped = {};
+function classifyBOMItems(items, floor) {
+  const result = { stair: {}, railing: {} };
+  if (!items || !items.length) return result;
 
-  const risers = bomData.items
-    .filter(d => d.type === 'Riser')
+  // Welcome risers — первые 2 по алфавиту среди деталей этой лестницы
+  const risers = items
+    .filter(d => d.type === 'Riser' && d.name && d.name.startsWith(floor + '_'))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const welcomeRiserNames = risers.slice(0, 2).map(r => r.name);
 
-  bomData.items.forEach(d => {
+  items.forEach(d => {
+    if (!d.name) return;
+    const m = d.name.match(/^(\d+)_/);
+    if (!m) return;
+    const prefix = parseInt(m[1], 10);
+
+    let target = null;
+    if (prefix === floor)          target = result.stair;
+    else if (prefix === floor + 1) target = result.railing;
+    else return;
+
     let catKey = null;
     if (d.type === 'Step') {
       catKey = (d.subtype === 'bullnose') ? 'welcome_steps' : 'treads';
@@ -2467,13 +2540,14 @@ function classifyBOMItems() {
     else if (d.type === 'Handrail')     catKey = 'handrail';
     else if (d.type === 'Baluster')     catKey = 'baluster';
     else if (d.type === 'Covering')     catKey = 'covering';
-    else if (d.type === 'Bottomrail')   catKey = 'handrail';
+    else if (d.type === 'Bottomrail')   catKey = 'bottomrail';
+
     if (!catKey) return;
-    if (!grouped[catKey]) grouped[catKey] = [];
-    grouped[catKey].push(d);
+    if (!target[catKey]) target[catKey] = [];
+    target[catKey].push(d);
   });
 
-  return grouped;
+  return result;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2519,47 +2593,45 @@ function paintAreaCyl(W, L) {
   return (Math.PI * W * L) / 1e6;
 }
 
-function calculatePrice(km) {
-  const result = {
-    categories: [], materialTotal: 0, paintTotal: 0,
-    deliveryCost: 0, deliveryKm: km || 0,
-    montageCost: 0, total: 0
+function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
+  const out = {
+    prefix: prefix,
+    title: title,
+    categories: [],
+    materialTotal: 0,
+    paintTotal: 0,
+    montageCost: 0
   };
-  if (!bomData || !priceData || !priceData.categories) return result;
-
-  const paintPrice = (priceData.paint && priceData.paint.price_m2) || 0;
-  const grouped = classifyBOMItems();
+  if (!priceData || !priceData.categories) return out;
 
   for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
-    const items = grouped[catKey];
+    const items = classified[catKey];
     if (!items || !items.length) continue;
 
-    const matKey   = getMaterialForKey(catKey);
-    const matInfo  = getMaterialInfo(matKey);
+    // Скрытые категории не участвуют в расчёте
+    const visKey = prefix + '_' + catKey;
+    if (elementVisible[visKey] === false) continue;
+
+    const matKey = getMaterialForKey(catKey);
+    const matInfo = getMaterialInfo(matKey);
     const unitPrice = (cat.prices && cat.prices[matKey]) || 0;
-    const coef     = (cat.method === 'm2' && cat.coef) ? cat.coef : 1;
+    const coef = (cat.method === 'm2' && cat.coef) ? cat.coef : 1;
 
-   let qty = 0;
+    let qty = 0;
+    if (cat.method === 'm2') {
+      items.forEach(d => { qty += (d.W * d.L) / 1e6; });
+      qty *= coef;
+    } else if (cat.method === 'length') {
+      const extra = (cat.extra_mm || 0) / 1000;
+      items.forEach(d => { qty += d.L / 1000 + extra; });
+    } else if (cat.method === 'count') {
+      qty = items.length;
+    }
 
-if (cat.method === 'm2') {
-  items.forEach(d => {
-    qty += (d.W * d.L) / 1e6;
-  });
-  qty *= coef;
-} else if (cat.method === 'length') {
-  const extra = (cat.extra_mm || 0) / 1000;
-  items.forEach(d => {
-    qty += d.L / 1000 + extra;
-  });
-} else if (cat.method === 'count') {
-  qty = items.length;
-}
+    const paintArea = getDXFPaintArea(catKey, items);
 
-/* Покраска — из 3D-модели (DAE), а не из заготовок XML */
-const paintArea = getDXFPaintArea(catKey);
-
-    result.categories.push({
+    out.categories.push({
       key: catKey,
       name: cat.name,
       materialName: matInfo.name,
@@ -2568,13 +2640,72 @@ const paintArea = getDXFPaintArea(catKey);
       paintCost: paintArea * paintPrice
     });
 
-    result.materialTotal += qty * unitPrice;
-    result.paintTotal    += paintArea * paintPrice;
+    out.materialTotal += qty * unitPrice;
+    out.paintTotal += paintArea * paintPrice;
   }
 
-  /* ---------- ДОСТАВКА: 60 ₽/км + 800 подача, минимум 4500 ---------- */
+  // Монтаж — только для лестниц
+  if (countMontage) {
+    const treadMatKey = getMaterialForKey('treads');
+    const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
+    let coef = 1.0;
+    if (classified.risers && classified.risers.length > 0) coef += 0.10;
+    const coveringCount = (classified.covering || []).length;
+    out.montageCost = baseMontage * coef + 1200 * coveringCount;
+  }
+
+  return out;
+}
+
+function calculatePrice(km) {
+  const result = {
+    groups: [],
+    materialTotal: 0,
+    paintTotal: 0,
+    deliveryCost: 0,
+    deliveryKm: km || 0,
+    montageCost: 0,
+    total: 0
+  };
+  if (!bomGroups || !bomGroups.length || !priceData || !priceData.categories) return result;
+
+  const paintPrice = (priceData.paint && priceData.paint.price_m2) || 0;
+
+  for (const group of bomGroups) {
+    const classified = classifyBOMItems(group.items, group.floor);
+
+    // Лестница N → N+1
+    const stairResult = buildGroupResult(
+      's' + group.floor,
+      'Лестница ' + group.floor + '→' + (group.floor + 1),
+      classified.stair,
+      paintPrice,
+      true
+    );
+    if (stairResult.categories.length) result.groups.push(stairResult);
+
+    // Ограждение этажа N+1
+    const railingResult = buildGroupResult(
+      'r' + (group.floor + 1),
+      'Ограждение ' + (group.floor + 1) + ' этажа',
+      classified.railing,
+      paintPrice,
+      false
+    );
+    if (railingResult.categories.length) result.groups.push(railingResult);
+
+    result.materialTotal += stairResult.materialTotal + railingResult.materialTotal;
+    result.paintTotal += stairResult.paintTotal + railingResult.paintTotal;
+    result.montageCost += stairResult.montageCost;
+  }
+
+  /* Доставка: 60 ₽/км + 800 подача, минимум 4500 */
   const base = 60 * (km || 0) + 800;
   result.deliveryCost = Math.max(4500, base);
+
+  result.total = result.materialTotal + result.paintTotal + result.deliveryCost + result.montageCost;
+  return result;
+}
 
   /* ---------- МОНТАЖ ---------- */
   const treadMatKey = getMaterialForKey('treads');
@@ -2609,12 +2740,12 @@ function buildPriceModal() {
     priceBody.innerHTML = '<div class="price-empty">Файл price.json не найден</div>';
     return;
   }
-  if (!bomData) {
-    priceBody.innerHTML = '<div class="price-empty">XML-файл из Staircon не найден.<br>Загрузите его рядом с .dae</div>';
+  if (!bomGroups || !bomGroups.length) {
+    priceBody.innerHTML = '<div class="price-empty">XML-файлы из Staircon не найдены.<br>Загрузите их в репозиторий.</div>';
     return;
   }
 
-  /* Автозагрузка DXF при первом открытии */
+  // Автозагрузка DXF при первом открытии
   if (Object.keys(dxfCache).length < 46) {
     priceBody.innerHTML = '<div class="price-empty">' +
       '<div class="spinner" style="margin-bottom:14px;"></div>' +
@@ -2623,16 +2754,14 @@ function buildPriceModal() {
     const prog = document.getElementById('dxfProgress');
     loadAllDXF((done, total) => {
       if (prog) prog.innerHTML = 'Загрузка DXF… <b>' + done + ' / ' + total + '</b>';
-    }).then(() => {
-      buildPriceModal();
-    });
+    }).then(() => { buildPriceModal(); });
     return;
   }
 
   const result = calculatePrice(currentKm);
   priceBody.innerHTML = '';
 
-  /* --- Поле ввода км (не пересобираем всё окно при вводе) --- */
+  // Поле км
   const kmRow = document.createElement('div');
   kmRow.className = 'input-row';
   kmRow.innerHTML =
@@ -2640,50 +2769,53 @@ function buildPriceModal() {
     '<input type="number" id="deliveryKmInput" min="0" step="1" value="' + currentKm + '">' +
     '<span class="unit">км</span>';
   priceBody.appendChild(kmRow);
-
-  const kmInput = kmRow.querySelector('input');
-  kmInput.addEventListener('input', (e) => {
+  kmRow.querySelector('input').addEventListener('input', (e) => {
     const v = parseInt(e.target.value, 10);
     currentKm = isFinite(v) && v >= 0 ? v : 0;
-    updatePriceTotals();
+    buildPriceModal();
   });
 
-  /* --- Категории (без формул) --- */
-  const cats = document.createElement('div');
-  cats.id = 'priceCatsBlock';
-  cats.style.display = 'flex';
-  cats.style.flexDirection = 'column';
-  cats.style.gap = '10px';
-  result.categories.forEach((cat) => {
-    const block = document.createElement('div');
-    block.className = 'price-cat';
-    block.innerHTML =
-      '<div class="price-cat-name">' +
-        '<span>' + cat.name + '</span>' +
-        '<span class="material">' + cat.materialName + '</span>' +
-      '</div>' +
-      '<div class="price-cat-result">' + formatRub(cat.materialCost) + '</div>';
-    cats.appendChild(block);
-  });
-  priceBody.appendChild(cats);
+  // Группы с категориями
+  result.groups.forEach((g) => {
+    const groupBlock = document.createElement('div');
+    groupBlock.className = 'price-group';
 
-  /* --- Итоги (обновляются динамически) --- */
+    const groupTotal = g.materialTotal + g.paintTotal;
+    const title = document.createElement('div');
+    title.className = 'price-group-title';
+    title.innerHTML = '<span>' + g.title + '</span>' +
+                      '<span class="sum">' + formatRub(groupTotal) + '</span>';
+    groupBlock.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'price-group-body';
+
+    g.categories.forEach((cat) => {
+      const block = document.createElement('div');
+      block.className = 'price-cat';
+      block.innerHTML =
+        '<div class="price-cat-name">' +
+          '<span>' + cat.name + '</span>' +
+          '<span class="material">' + cat.materialName + '</span>' +
+        '</div>' +
+        '<div class="price-cat-result">' + formatRub(cat.materialCost) + '</div>';
+      body.appendChild(block);
+    });
+
+    groupBlock.appendChild(body);
+    priceBody.appendChild(groupBlock);
+  });
+
+  // Итоги
   const totals = document.createElement('div');
   totals.className = 'price-totals';
-  totals.id = 'priceTotalsBlock';
+  totals.innerHTML =
+    '<div class="price-totals-row"><span>Материал</span><span>' + formatRub(result.materialTotal) + '</span></div>' +
+    '<div class="price-totals-row"><span>Покраска</span><span>' + formatRub(result.paintTotal) + '</span></div>' +
+    '<div class="price-totals-row"><span>Доставка (' + result.deliveryKm + ' км)</span><span>' + formatRub(result.deliveryCost) + '</span></div>' +
+    '<div class="price-totals-row"><span>Монтаж</span><span>' + formatRub(result.montageCost) + '</span></div>' +
+    '<div class="price-totals-row total"><span>ИТОГО</span><span>' + formatRub(result.total) + '</span></div>';
   priceBody.appendChild(totals);
-
-  updatePriceTotals();
-
-  function updatePriceTotals() {
-    const r = calculatePrice(currentKm);
-    totals.innerHTML =
-      '<div class="price-totals-row"><span>Материал</span><span>' + formatRub(r.materialTotal) + '</span></div>' +
-      '<div class="price-totals-row"><span>Покраска</span><span>' + formatRub(r.paintTotal) + '</span></div>' +
-      '<div class="price-totals-row"><span>Доставка (' + r.deliveryKm + ' км)</span><span>' + formatRub(r.deliveryCost) + '</span></div>' +
-      '<div class="price-totals-row"><span>Монтаж</span><span>' + formatRub(r.montageCost) + '</span></div>' +
-      '<div class="price-totals-row total"><span>ИТОГО</span><span>' + formatRub(r.total) + '</span></div>';
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3133,28 +3265,23 @@ async function loadAllDXF(progressCb) {
 }
 
 /* ---- Площадь покраски из DXF для одной категории ---- */
-function getDXFPaintArea(catKey) {
+function getDXFPaintArea(catKey, items) {
+  if (!items || !items.length) return 0;
+
   /* Столбы — из XML: 4 × 80 × L */
   if (catKey === 'posts') {
-    const grouped = classifyBOMItems();
-    const items = grouped.posts || [];
     let total = 0;
     items.forEach(d => { total += (4 * 80 * d.L) / 1e6; });
     return total;
   }
-
   /* Балясины — из XML: 4 × 45 × L */
   if (catKey === 'baluster') {
-    const grouped = classifyBOMItems();
-    const items = grouped.baluster || [];
     let total = 0;
     items.forEach(d => { total += (4 * 45 * d.L) / 1e6; });
     return total;
   }
 
   /* Плоские — из DXF, с fallback на XML */
-  const grouped = classifyBOMItems();
-  const items = grouped[catKey] || [];
   let total = 0;
   items.forEach(d => {
     if (d.name && d.name.endsWith('End')) return;
