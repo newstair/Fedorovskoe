@@ -2310,6 +2310,33 @@ function getDXFPaintArea(catKey, items) {
   });
   return total;
 }
+/* ═══════════════════════════════════════════════════════════════
+   СТАРТ
+   ═══════════════════════════════════════════════════════════════ */
+(async () => {
+  /* 1. price.json */
+  try {
+    const r = await fetch('price.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    priceData = await r.json();
+    console.log('%c✔ price.json загружен', 'color:#31d0aa;font-weight:bold');
+  } catch (err) {
+    console.log('price.json не найден:', err.message);
+  }
+
+  /* 2. Модель */
+  MODEL_FILE = await findModelFile();
+  if (!MODEL_FILE) {
+    showToast('Файл .dae не найден. Загрузите его в репозиторий.');
+    return;
+  }
+
+  /* 3. BOM (XML) */
+  await loadBOM();
+
+  /* 4. Загрузка модели */
+  loadCollada(MODEL_FILE, MODEL_FILE);
+})();
 
 console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
 console.log('Линейка — M. Человечек — H.');
