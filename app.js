@@ -1,3 +1,10 @@
+:root{
+  --bg:#0f1116; --panel:rgba(22,25,33,.92);
+  --border:rgba(255,255,255,.09); --border-str:rgba(255,255,255,.16);
+  --text:#e9edf5; --muted:#8b95a8;
+  --accent:#5b8cff; --accent-2:#31d0aa; --danger:#ff6b6b;
+  --radius:14px;
+}
 import * as THREE from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
 import { ColladaLoader }  from 'three/addons/loaders/ColladaLoader.js';
