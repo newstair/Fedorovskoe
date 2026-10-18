@@ -656,3 +656,6 @@
     .float-bar.show{transform:translateY(0);}
     .float-bar .fb-slider input[type="range"].heightSlider{width:90px;}
   }
+#container_s1_covering, #container_s2_covering {
+  flex-wrap: wrap;
+}
