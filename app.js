@@ -2311,11 +2311,7 @@ function getDXFPaintArea(catKey, items) {
   return total;
 }
 
+})();
 
-  ═════════════════════
-   ЭКСПОРТ В WINDOW (для отладки из консоли)
-   ═══════════════════════════════════════════════════════════════ */
-window.loadOneDXF      = loadOneDXF;
-window.loadAllDXF      = loadAllDXF;
-window.dxfCache        = dxfCache;
-window.getDXFPaintArea = getDXFPaintArea;
+console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
+console.log('Линейка — M. Человечек — H.');
