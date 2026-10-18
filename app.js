@@ -1667,11 +1667,14 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
     const paintArea = getDXFPaintArea(catKey, items);
 
-    out.categories.push({
+       out.categories.push({
       key: catKey,
       name: cat.name,
       materialName: matInfo.name,
       count: items.length,
+      qty: qty,
+      method: cat.method,
+      paintArea: paintArea,
       materialCost: qty * unitPrice,
       paintCost: paintArea * paintPrice
     });
@@ -1805,15 +1808,32 @@ function buildPriceModal() {
     const body = document.createElement('div');
     body.className = 'price-group-body';
 
-    g.categories.forEach((cat) => {
+       g.categories.forEach((cat) => {
       const block = document.createElement('div');
       block.className = 'price-cat';
+      
+      // Форматируем количество
+      let qtyText = '';
+      if (cat.method === 'm2') qtyText = cat.qty.toFixed(3) + ' м²';
+      else if (cat.method === 'length') qtyText = cat.qty.toFixed(2) + ' м';
+      else if (cat.method === 'count') qtyText = cat.qty + ' шт';
+
       block.innerHTML =
         '<div class="price-cat-name">' +
           '<span>' + cat.name + '</span>' +
           '<span class="material">' + cat.materialName + '</span>' +
         '</div>' +
-        '<div class="price-cat-result">' + formatRub(cat.materialCost) + '</div>';
+        '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:4px;">' +
+          '<span>Изготовление (' + qtyText + ')</span>' +
+          '<span>' + formatRub(cat.materialCost) + '</span>' +
+        '</div>' +
+        '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted);">' +
+          '<span>Покраска (' + cat.paintArea.toFixed(2) + ' м²)</span>' +
+          '<span>' + formatRub(cat.paintCost) + '</span>' +
+        '</div>' +
+        '<div class="price-cat-result" style="margin-top:8px; border-top:1px solid var(--border); padding-top:4px;">' +
+          formatRub(cat.materialCost + cat.paintCost) +
+        '</div>';
       body.appendChild(block);
     });
 
@@ -1824,8 +1844,8 @@ function buildPriceModal() {
   // Итоги
   const totals = document.createElement('div');
   totals.className = 'price-totals';
-  totals.innerHTML =
-    '<div class="price-totals-row"><span>Материал</span><span>' + formatRub(result.materialTotal) + '</span></div>' +
+    totals.innerHTML =
+    '<div class="price-totals-row"><span>Изготовление</span><span>' + formatRub(result.materialTotal) + '</span></div>' +
     '<div class="price-totals-row"><span>Покраска</span><span>' + formatRub(result.paintTotal) + '</span></div>' +
     '<div class="price-totals-row"><span>Доставка (' + result.deliveryKm + ' км)</span><span>' + formatRub(result.deliveryCost) + '</span></div>' +
     '<div class="price-totals-row"><span>Монтаж</span><span>' + formatRub(result.montageCost) + '</span></div>' +
