@@ -94,6 +94,8 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
+window.scene = scene;
+window.elementGroups = elementGroups;
 scene.background = new THREE.Color('#0f1116');
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
@@ -724,8 +726,9 @@ function loadCollada(url, fileName) {
           m.needsUpdate = true;
         });
 
-         const objName = obj.name || (obj.parent && obj.parent.name) || '';
-        const group = classifyMaterial(objName) || classifyMaterial(matName); // Ищем по имени объекта или родителя
+               const matName = mats[0] && mats[0].name ? mats[0].name : '';
+        const objName = obj.name || (obj.parent && obj.parent.name) || '';
+        const group = classifyMaterial(objName) || classifyMaterial(matName);
                 if (group) {
           if (!elementGroups[group]) elementGroups[group] = [];
           elementGroups[group].push(obj);
