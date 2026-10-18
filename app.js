@@ -1407,6 +1407,7 @@ document.getElementById('bgColor').addEventListener('input', (e) => {
 /* ---------- Сброс ---------- */
 document.getElementById('btnReset').addEventListener('click', () => {
    buildColorPanel();
+     for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
     document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
   
   glassWalls = true;
@@ -1612,25 +1613,32 @@ function buildColorPanel() {
 }
 
 function applyColor(categoryKey) {
-  const meshes = elementGroups[categoryKey] || [];
   const colorHex = currentColor[categoryKey];
 
-  meshes.forEach((obj) => {
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const orig = originalMaterialState.get(obj.uuid);
+  // Проходим по всем группам (s1_treads, s2_treads, r2_baluster и т.д.)
+  for (const groupKey in elementGroups) {
+    // Проверяем, совпадает ли конец имени группы с нашей категорией
+    // Например, 's1_treads'.endsWith('_treads') — это правда
+    if (!groupKey.endsWith('_' + categoryKey)) continue;
+    
+    const meshes = elementGroups[groupKey];
+    meshes.forEach((obj) => {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const orig = originalMaterialState.get(obj.uuid);
 
-    mats.forEach((m) => {
-      if (!m) return;
-      if (!colorHex) {
-        // Возвращаем исходный цвет
-        if (orig && m.color) m.color.setHex(orig.color);
-      } else {
-        // Применяем тонировку
-        if (m.color) m.color.set(colorHex);
-      }
-      m.needsUpdate = true;
+      mats.forEach((m) => {
+        if (!m) return;
+        if (!colorHex) {
+          // Возвращаем исходный цвет
+          if (orig && m.color) m.color.setHex(orig.color);
+        } else {
+          // Применяем тонировку
+          if (m.color) m.color.set(colorHex);
+        }
+        m.needsUpdate = true;
+      });
     });
-  });
+  }
 }
 function applyFinish(categoryKey) {
   const meshes = elementGroups[categoryKey] || [];
