@@ -1647,10 +1647,9 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
   };
   if (!priceData || !priceData.categories) return out;
 
-  for (const catKey in priceData.categories) {
+    for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
-     
-  }
+    const items = classified[catKey];
     if (!items || !items.length) continue;
 
     // Скрытые категории не участвуют в расчёте
@@ -1675,7 +1674,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
     const paintArea = getDXFPaintArea(catKey, items);
 
-       out.categories.push({
+    out.categories.push({
       key: catKey,
       name: cat.name,
       materialName: matInfo.name,
@@ -1689,16 +1688,6 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
     out.materialTotal += qty * unitPrice;
     out.paintTotal += paintArea * paintPrice;
-  }
-
-  // Монтаж — только для лестниц
-  if (countMontage) {
-    const treadMatKey = getMaterialForKey('treads');
-    const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
-    let coef = 1.0;
-    if (classified.risers && classified.risers.length > 0) coef += 0.10;
-    const coveringCount = (classified.covering || []).length;
-    out.montageCost = baseMontage * coef + 1200 * coveringCount;
   }
 
   return out;
