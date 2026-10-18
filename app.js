@@ -94,8 +94,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-window.scene = scene;
-window.elementGroups = elementGroups;
+
 scene.background = new THREE.Color('#0f1116');
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
