@@ -2267,7 +2267,44 @@ async function loadOneDXF(name) {
   }
   return null;
 }
+function buildDynamicPanelButtons() {
+  const container1 = document.getElementById('container_s1_covering');
+  const container2 = document.getElementById('container_s2_covering');
+  if (container1) container1.innerHTML = '';
+  if (container2) container2.innerHTML = '';
 
+  if (!bomGroups || !bomGroups.length) return;
+
+  bomGroups.forEach(group => {
+    const floor = group.floor;
+    const container = document.getElementById('container_s' + floor + '_covering');
+    if (!container) return;
+
+    // Находим все панели для этой лестницы
+    const panels = group.items.filter(d => d.type === 'Covering');
+    
+    panels.forEach(d => {
+      const panelName = d.name.split('_')[1]; // FC1, FC2
+      const key = 's' + floor + '_' + panelName.toLowerCase(); // s1_fc1
+      
+      if (!elementGroups[key]) elementGroups[key] = [];
+      if (elementVisible[key] === undefined) elementVisible[key] = true;
+
+      const btn = document.createElement('button');
+      btn.className = 'btn active';
+      btn.id = 'el_' + key;
+      btn.innerHTML = '<span class="ico">📏</span> Панель ' + panelName.replace('FC', '');
+      
+      btn.addEventListener('click', () => {
+        elementVisible[key] = !elementVisible[key];
+        btn.classList.toggle('active', elementVisible[key]);
+        applyElementVisibility();
+      });
+
+      container.appendChild(btn);
+    });
+  });
+}
 /* ---- Загрузить все DXF для плоских категорий ---- */
 let dxfLoadPromise = null;
 
