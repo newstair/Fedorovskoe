@@ -2376,19 +2376,6 @@ function getDXFPaintArea(catKey, items) {
   });
   return total;
 }
-/* ═══════════════════════════════════════════════════════════════
-   СТАРТ
-   ═══════════════════════════════════════════════════════════════ */
-(async () => {
-  /* 1. price.json */
-  try {
-    const r = await fetch('price.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    priceData = await r.json();
-    console.log('%c✔ price.json загружен', 'color:#31d0aa;font-weight:bold');
-  } catch (err) {
-    console.log('price.json не найден:', err.message);
-  }
 
   /* 2. Модель */
   MODEL_FILE = await findModelFile();
