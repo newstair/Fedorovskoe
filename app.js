@@ -2311,7 +2311,5 @@ function getDXFPaintArea(catKey, items) {
   return total;
 }
 
-})();
-
 console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
 console.log('Линейка — M. Человечек — H.');
