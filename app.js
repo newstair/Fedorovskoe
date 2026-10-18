@@ -220,7 +220,27 @@ const currentFinish = {
   welcome_steps: null, welcome_risers: null,
   handrail: null, baluster: null, posts: null, covering: null,
 };
+// Список из 12 цветов (пока заглушки, потом настроим оттенки)
+const COLOR_PALETTE = [
+  { name: 'Натуральный', hex: '#ffffff' }, // белый = без изменений
+  { name: 'Светлый дуб', hex: '#e6d5b8' },
+  { name: 'Тёмный орех', hex: '#5c3a21' },
+  { name: 'Венге', hex: '#3b2b2b' },
+  { name: 'Медовый', hex: '#d4a373' },
+  { name: 'Красное дерево', hex: '#800000' },
+  { name: 'Мокко', hex: '#6f4e37' },
+  { name: 'Палисандр', hex: '#4a2525' },
+  { name: 'Клён', hex: '#f5deb3' },
+  { name: 'Черный', hex: '#1a1a1a' },
+  { name: 'Серый', hex: '#808080' },
+  { name: 'Белый', hex: '#f0f0f0' }
+];
 
+const currentColor = {
+  treads: null, risers: null, stringers: null, kosour: null,
+  welcome_steps: null, welcome_risers: null,
+  handrail: null, baluster: null, posts: null, covering: null,
+};
 /* ---------- Данные ---------- */
 let bomData = null;       // обратная совместимость (первый XML)
   let priceData = null;
@@ -805,7 +825,7 @@ function loadCollada(url, fileName) {
       applyGlassWalls();
       setHumanHeight(humanHeight);
       buildFinishPanel();
-
+buildColorPanel();
       const modelName = fileName.replace(/\.(dae|xml)$/i, '');
       if (modelName) {
         document.title = '3D Viewer — ' + modelName;
@@ -1386,6 +1406,7 @@ document.getElementById('bgColor').addEventListener('input', (e) => {
 
 /* ---------- Сброс ---------- */
 document.getElementById('btnReset').addEventListener('click', () => {
+   buildColorPanel();
     document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
   
   glassWalls = true;
@@ -1518,7 +1539,99 @@ function buildFinishPanel() {
     finishRows.appendChild(row);
   });
 }
+function buildColorPanel() {
+  const colorRows = document.getElementById('colorRows');
+  if (!colorRows) return;
+  colorRows.innerHTML = '';
 
+  FINISH_CATEGORIES.forEach((cat) => {
+    const row = document.createElement('div');
+    row.className = 'finish-row'; // используем те же классы для аккордеона внутри
+    row.dataset.key = cat.key;
+
+    const header = document.createElement('div');
+    header.className = 'finish-header';
+    header.innerHTML =
+      '<span class="label">' + cat.label + '</span>' +
+      '<span class="value">' +
+        '<span class="finish-current">Без тонировки</span>' +
+        '<span class="arrow">▼</span>' +
+      '</span>';
+
+    const options = document.createElement('div');
+    options.className = 'color-options';
+
+    // Кнопка "Сброс"
+    const optOrig = document.createElement('div');
+    optOrig.className = 'color-swatch original';
+    optOrig.innerHTML = '✕';
+    optOrig.title = 'Без тонировки';
+    optOrig.addEventListener('click', () => {
+      currentColor[cat.key] = null;
+      row.querySelector('.finish-current').textContent = 'Без тонировки';
+      options.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
+      optOrig.classList.add('selected');
+      row.classList.remove('open');
+      applyColor(cat.key);
+    });
+    options.appendChild(optOrig);
+
+    // Цвета
+    COLOR_PALETTE.forEach((color) => {
+      if (color.name === 'Натуральный') return; // пропускаем белый, есть кнопка сброса
+      
+      const swatch = document.createElement('div');
+      swatch.className = 'color-swatch';
+      swatch.style.background = color.hex;
+      swatch.title = color.name;
+      
+      swatch.addEventListener('click', () => {
+        currentColor[cat.key] = color.hex;
+        row.querySelector('.finish-current').textContent = color.name;
+        options.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
+        swatch.classList.add('selected');
+        row.classList.remove('open');
+        applyColor(cat.key);
+      });
+      options.appendChild(swatch);
+    });
+
+    row.appendChild(header);
+    row.appendChild(options);
+
+    header.addEventListener('click', () => {
+      const isOpen = row.classList.contains('open');
+      colorRows.querySelectorAll('.finish-row.open').forEach((r) => {
+        if (r !== row) r.classList.remove('open');
+      });
+      row.classList.toggle('open', !isOpen);
+    });
+
+    colorRows.appendChild(row);
+  });
+}
+
+function applyColor(categoryKey) {
+  const meshes = elementGroups[categoryKey] || [];
+  const colorHex = currentColor[categoryKey];
+
+  meshes.forEach((obj) => {
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const orig = originalMaterialState.get(obj.uuid);
+
+    mats.forEach((m) => {
+      if (!m) return;
+      if (!colorHex) {
+        // Возвращаем исходный цвет
+        if (orig && m.color) m.color.setHex(orig.color);
+      } else {
+        // Применяем тонировку
+        if (m.color) m.color.set(colorHex);
+      }
+      m.needsUpdate = true;
+    });
+  });
+}
 function applyFinish(categoryKey) {
   const meshes = elementGroups[categoryKey] || [];
   const choice = currentFinish[categoryKey];
