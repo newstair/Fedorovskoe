@@ -231,55 +231,59 @@ const allVertices = [];
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ МАТЕРИАЛОВ (для 3D-визуализации)
    ═══════════════════════════════════════════════════════════════ */
-function classifyMaterial(matName) {
-  if (!matName) return null;
+function classifyMaterial(str) {
+  if (!str) return null;
+  const n = str.toUpperCase();
 
-  // 1. Свободный столб ограждения этажа (N_P1, N_P2, ...)
-  let m = matName.match(/^([123])_P\d/i);
+  // 1. Свободный столб ограждения этажа (N_P1)
+  let m = n.match(/^([123])_P\d/i);
   if (m) return 'r' + m[1] + '_posts';
 
   // 2. Поручень ограждения этажа (N_HRFR...)
-  m = matName.match(/^([123])_HRFR/i);
+  m = n.match(/^([123])_HRFR/i);
   if (m) return 'r' + m[1] + '_handrail';
 
   // 3. Подбалясенник ограждения этажа (N_BRFR...)
-  m = matName.match(/^([123])_BRFR/i);
+  m = n.match(/^([123])_BRFR/i);
   if (m) return 'r' + m[1] + '_bottomrail';
 
-  // 4. Балясины ограждения этажа (N_Ba1FR11, N_Ba2FR21...)
-  m = matName.match(/^([123])_BA\d*FR/i);
+  // 4. Балясины ограждения этажа (N_Ba1FR11...)
+  m = n.match(/^([123])_BA\d*FR/i);
   if (m) return 'r' + m[1] + '_baluster';
 
   // 5. Столбы лестницы (SP1-2L, StPR, EnPR)
-  m = matName.match(/^([12])_(SP|STPR|ENPR)/i);
+  m = n.match(/^([12])_(SP|STPR|ENPR)/i);
   if (m) return 's' + m[1] + '_posts';
 
   // 6. Тетива лестницы (St1L, St2R)
-  m = matName.match(/^([12])_ST/i);
+  m = n.match(/^([12])_ST/i);
   if (m) return 's' + m[1] + '_stringers';
 
   // 7. Ступени
-  m = matName.match(/^([12])_TR/i);
+  m = n.match(/^([12])_TR/i);
   if (m) return 's' + m[1] + '_treads';
 
   // 8. Подступенки
-  m = matName.match(/^([12])_RI/i);
+  m = n.match(/^([12])_RI/i);
   if (m) return 's' + m[1] + '_risers';
 
-  // 9. Поручень лестницы (HRR, не HRFR — HRFR уже отловлен)
-  m = matName.match(/^([12])_HRR/i);
+  // 9. Поручень лестницы (HRR)
+  m = n.match(/^([12])_HRR/i);
   if (m) return 's' + m[1] + '_handrail';
 
-  // 10. Балясины лестницы (Ba1R1R, Ba2R3R — без FR)
-  m = matName.match(/^([12])_BA/i);
+  // 10. Балясины лестницы (Ba1R1R)
+  m = n.match(/^([12])_BA/i);
   if (m) return 's' + m[1] + '_baluster';
 
-   // 11. Обшивка проёма (Панели) - делаем динамически
-  m = matName.match(/^([12])_(FC\d+)/i);
-  if (m) return 's' + m[1] + '_' + m[2].toLowerCase(); // вернет, например, s1_fc1
+  // 11. Обшивка проёма (FC1)
+  m = n.match(/^([12])_FC(\d+)/i);
+  if (m) return 's' + m[1] + '_fc' + m[2];
 
-  // Fallback для старых имён материалов DAE
-  const n = matName.toUpperCase();
+  // 12. Наконечники столбов (Post cap)
+  m = n.match(/^([12])_POST CAP/i);
+  if (m) return 's' + m[1] + '_post_caps';
+
+  // Старый фоллбэк по материалу
   if (n.includes('TREAD'))         return 's1_treads';
   if (n.includes('RISER'))         return 's1_risers';
   if (n.includes('STRING'))        return 's1_stringers';
@@ -721,7 +725,7 @@ function loadCollada(url, fileName) {
         });
 
         const matName = mats[0] && mats[0].name ? mats[0].name : '';
-        const group = classifyMaterial(matName);
+const group = classifyMaterial(obj.name) || classifyMaterial(matName); // Ищем по имени объекта, потом по материалу
                 if (group) {
           if (!elementGroups[group]) elementGroups[group] = [];
           elementGroups[group].push(obj);
