@@ -274,9 +274,9 @@ function classifyMaterial(matName) {
   m = matName.match(/^([12])_BA/i);
   if (m) return 's' + m[1] + '_baluster';
 
-  // 11. Обшивка проёма
-  m = matName.match(/^([12])_FC/i);
-  if (m) return 's' + m[1] + '_covering';
+   // 11. Обшивка проёма (Панели) - делаем динамически
+  m = matName.match(/^([12])_(FC\d+)/i);
+  if (m) return 's' + m[1] + '_' + m[2].toLowerCase(); // вернет, например, s1_fc1
 
   // Fallback для старых имён материалов DAE
   const n = matName.toUpperCase();
@@ -722,7 +722,8 @@ function loadCollada(url, fileName) {
 
         const matName = mats[0] && mats[0].name ? mats[0].name : '';
         const group = classifyMaterial(matName);
-        if (group && elementGroups[group]) {
+                if (group) {
+          if (!elementGroups[group]) elementGroups[group] = [];
           elementGroups[group].push(obj);
           if (group === 'wall' && isWindowTexture(matName)) obj.userData.isWindow = true;
         }
@@ -1201,7 +1202,7 @@ document.querySelectorAll('.acc-header').forEach((h) => {
 /* ---------- Видимость элементов ---------- */
 function applyElementVisibility() {
   for (const key in elementGroups) {
-    const visible = elementVisible[key];
+        const visible = elementVisible[key] !== false;
     elementGroups[key].forEach((obj) => { obj.visible = visible; });
   }
 }
@@ -1642,7 +1643,16 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
   for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
-    const items = classified[catKey];
+        let items = classified[catKey];
+    if (items) {
+      items = items.filter(d => {
+        if (!d.name) return true;
+        const m = d.name.match(/^(\d+)_(FC\d+)/i);
+        if (!m) return true;
+        const key = 's' + m[1] + '_' + m[2].toLowerCase();
+        return elementVisible[key] !== false;
+      });
+    }
     if (!items || !items.length) continue;
 
     // Скрытые категории не участвуют в расчёте
@@ -1758,6 +1768,45 @@ function buildPriceModal() {
     priceBody.innerHTML = '<div class="price-empty">Файл price.json не найден</div>';
     return;
   }
+function buildDynamicPanelButtons() {
+  const container1 = document.getElementById('container_s1_covering');
+  const container2 = document.getElementById('container_s2_covering');
+  if (container1) container1.innerHTML = '';
+  if (container2) container2.innerHTML = '';
+
+  if (!bomGroups || !bomGroups.length) return;
+
+  bomGroups.forEach(group => {
+    const floor = group.floor;
+    const container = document.getElementById('container_s' + floor + '_covering');
+    if (!container) return;
+
+    // Находим все панели для этой лестницы
+    const panels = group.items.filter(d => d.type === 'Covering');
+    
+    panels.forEach(d => {
+      const panelName = d.name.split('_')[1]; // FC1, FC2
+      const key = 's' + floor + '_' + panelName.toLowerCase(); // s1_fc1
+      
+      if (!elementGroups[key]) elementGroups[key] = [];
+      if (elementVisible[key] === undefined) elementVisible[key] = true;
+
+      const btn = document.createElement('button');
+      btn.className = 'btn active';
+      btn.id = 'el_' + key;
+      btn.innerHTML = '<span class="ico">📏</span> Панель ' + panelName.replace('FC', '');
+      
+      btn.addEventListener('click', () => {
+        elementVisible[key] = !elementVisible[key];
+        btn.classList.toggle('active', elementVisible[key]);
+        applyElementVisibility();
+      });
+
+      container.appendChild(btn);
+    });
+  });
+}
+   
   if (!bomGroups || !bomGroups.length) {
     priceBody.innerHTML = '<div class="price-empty">XML-файлы из Staircon не найдены.<br>Загрузите их в репозиторий.</div>';
     return;
@@ -2326,6 +2375,9 @@ function getDXFPaintArea(catKey, items) {
 
   /* 3. BOM (XML) */
   await loadBOM();
+
+     /* 3.5. Создаем динамические кнопки для панелей */
+  buildDynamicPanelButtons();
 
   /* 4. Загрузка модели */
   loadCollada(MODEL_FILE, MODEL_FILE);
