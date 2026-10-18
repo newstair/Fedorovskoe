@@ -2377,14 +2377,7 @@ function getDXFPaintArea(catKey, items) {
   return total;
 }
 
-  /* 2. Модель */
-  MODEL_FILE = await findModelFile();
-  if (!MODEL_FILE) {
-    showToast('Файл .dae не найден. Загрузите его в репозиторий.');
-    return;
-  }
-
- /* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    СТАРТ
    ═══════════════════════════════════════════════════════════════ */
 (async () => {
@@ -2413,4 +2406,4 @@ function getDXFPaintArea(catKey, items) {
 })();
 
 console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
-console.log('Линейка — M. Человечек — H.');
+console.log('Линейка — M. Человечек — H.');  
