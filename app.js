@@ -1649,14 +1649,8 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
   for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
-       const items = classified[catKey];
-        if (!d.name) return true;
-        const m = d.name.match(/^(\d+)_(FC\d+)/i);
-        if (!m) return true;
-        const key = 's' + m[1] + '_' + m[2].toLowerCase();
-        return elementVisible[key] !== false;
-      });
-    }
+     
+  }
     if (!items || !items.length) continue;
 
     // Скрытые категории не участвуют в расчёте
