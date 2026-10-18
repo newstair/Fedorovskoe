@@ -227,7 +227,7 @@ const COLOR_PALETTE = [
   { name: 'Тёмный орех', hex: '#5c3a21' },
   { name: 'Венге', hex: '#3b2b2b' },
   { name: 'Медовый', hex: '#d4a373' },
-  { name: 'Красное дерево', hex: '#a31e22' }, // Убрали вишневый уклон, сделали более теплым и насыщенным
+  { name: 'Красное дерево', hex: '#8b1a1a' }, // Сделаем благородный темно-красный
   { name: 'Мокко', hex: '#6f4e37' },
   { name: 'Палисандр', hex: '#4a2525' },
   { name: 'Клён', hex: '#f5deb3' },
@@ -1615,10 +1615,7 @@ function buildColorPanel() {
 function applyColor(categoryKey) {
   const colorHex = currentColor[categoryKey];
 
-  // Проходим по всем группам (s1_treads, s2_treads, r2_baluster и т.д.)
   for (const groupKey in elementGroups) {
-    // Проверяем, совпадает ли конец имени группы с нашей категорией
-    // Например, 's1_treads'.endsWith('_treads') — это правда
     if (!groupKey.endsWith('_' + categoryKey)) continue;
     
     const meshes = elementGroups[groupKey];
@@ -1628,12 +1625,25 @@ function applyColor(categoryKey) {
 
       mats.forEach((m) => {
         if (!m) return;
+        
         if (!colorHex) {
-          // Возвращаем исходный цвет
-          if (orig && m.color) m.color.setHex(orig.color);
+          // Возвращаем "Как в проекте" (текстура + родной цвет)
+          if (orig) {
+            m.map = orig.map;
+            if (m.color) m.color.setHex(orig.color);
+          }
         } else {
-          // Применяем тонировку
-          if (m.color) m.color.set(colorHex);
+          // Если выбран чистый белый или темно-красный, 
+          // убираем текстуру и делаем сплошной цвет (чтобы не было вишни)
+          if (colorHex === '#ffffff' || colorHex === '#8b1a1a') {
+            m.map = null;
+            if (m.color) m.color.set(colorHex);
+          } else {
+            // Остальные цвета (орех, дуб, мокко) накладываем поверх текстуры
+            // для эффекта тонирования
+            if (orig && orig.map) m.map = orig.map;
+            if (m.color) m.color.set(colorHex);
+          }
         }
         m.needsUpdate = true;
       });
