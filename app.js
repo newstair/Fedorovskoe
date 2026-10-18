@@ -724,8 +724,8 @@ function loadCollada(url, fileName) {
           m.needsUpdate = true;
         });
 
-        const matName = mats[0] && mats[0].name ? mats[0].name : '';
-const group = classifyMaterial(obj.name) || classifyMaterial(matName); // Ищем по имени объекта, потом по материалу
+         const objName = obj.name || (obj.parent && obj.parent.name) || '';
+        const group = classifyMaterial(objName) || classifyMaterial(matName); // Ищем по имени объекта или родителя
                 if (group) {
           if (!elementGroups[group]) elementGroups[group] = [];
           elementGroups[group].push(obj);
