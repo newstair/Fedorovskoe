@@ -679,7 +679,14 @@ function loadCollada(url, fileName) {
   for (const k in elementGroups) elementGroups[k] = [];
   allVertices.length = 0;
   originalMaterialState.clear();
-
+  while (openingDimsGroup.children.length) {
+    const c = openingDimsGroup.children.pop();
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) c.material.dispose();
+  }
+  openingDimsVisible = false;
+  const btnDims = document.getElementById('btnShowOpeningDims');
+  if (btnDims) btnDims.classList.remove('active');
   const loader = new ColladaLoader(manager);
   loader.load(url,
     (collada) => {
@@ -2254,44 +2261,99 @@ async function loadOneDXF(name) {
   }
   return null;
 }
-function buildDynamicPanelButtons() {
-  const container1 = document.getElementById('container_s1_covering');
-  const container2 = document.getElementById('container_s2_covering');
-  if (container1) container1.innerHTML = '';
-  if (container2) container2.innerHTML = '';
+/* ═══════════════════════════════════════════════════════════════
+   РАЗМЕРЫ ПРОЁМА (ГЕОМЕТРИЧЕСКИЙ АНАЛИЗ)
+   ═══════════════════════════════════════════════════════════════ */
+let openingDimsVisible = false;
+const openingDimsGroup = new THREE.Group();
+scene.add(openingDimsGroup);
 
-  if (!bomGroups || !bomGroups.length) return;
+function buildOpeningDimensions() {
+  // Очищаем старые размеры
+  while (openingDimsGroup.children.length) {
+    const c = openingDimsGroup.children.pop();
+    if (c.geometry) c.geometry.dispose();
+    if (c.material && c.material.map) c.material.map.dispose();
+    if (c.material) c.material.dispose();
+  }
 
-  bomGroups.forEach(group => {
-    const floor = group.floor;
-    const container = document.getElementById('container_s' + floor + '_covering');
-    if (!container) return;
+  // Собираем все меши проёма (полы перекрытий, где есть проём)
+  const coverMeshes = [...(elementGroups['s1_covering'] || []), ...(elementGroups['s2_covering'] || [])];
+  if (!coverMeshes.length) return;
 
-    // Находим все панели для этой лестницы
-    const panels = group.items.filter(d => d.type === 'Covering');
+  coverMeshes.forEach(mesh => {
+    mesh.updateMatrixWorld(true);
+    const geom = mesh.geometry;
+    if (!geom) return;
+
+    // Находим максимальную высоту (верхнюю грань) для этого меша
+    const pos = geom.attributes.position;
+    let maxY = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const y = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld).y;
+      if (y > maxY) maxY = y;
+    }
+
+    // Ищем рёбра с помощью EdgesGeometry
+    const edges = new THREE.EdgesGeometry(geom, 30); 
+    const edgePos = edges.attributes.position;
     
-    panels.forEach(d => {
-      const panelName = d.name.split('_')[1]; // FC1, FC2
-      const key = 's' + floor + '_' + panelName.toLowerCase(); // s1_fc1
-      
-      if (!elementGroups[key]) elementGroups[key] = [];
-      if (elementVisible[key] === undefined) elementVisible[key] = true;
+    const drawnEdges = new Set(); // Чтобы не дублировать линии
 
-      const btn = document.createElement('button');
-      btn.className = 'btn active';
-      btn.id = 'el_' + key;
-      btn.innerHTML = '<span class="ico">📏</span> Панель ' + panelName.replace('FC', '');
-      
-      btn.addEventListener('click', () => {
-        elementVisible[key] = !elementVisible[key];
-        btn.classList.toggle('active', elementVisible[key]);
-        applyElementVisibility();
-      });
+    for (let i = 0; i < edgePos.count; i += 2) {
+      const p1 = new THREE.Vector3().fromBufferAttribute(edgePos, i).applyMatrix4(mesh.matrixWorld);
+      const p2 = new THREE.Vector3().fromBufferAttribute(edgePos, i + 1).applyMatrix4(mesh.matrixWorld);
 
-      container.appendChild(btn);
-    });
+      // Оставляем только рёбра на верхней грани (допуск 10 мм)
+      if (Math.abs(p1.y - maxY) < 0.01 && Math.abs(p2.y - maxY) < 0.01) {
+        const dist = p1.distanceTo(p2);
+        
+        // Игнорируем слишком короткие рёбра (например, скругления < 50 мм)
+        if (dist > 0.05) {
+          // Создаем уникальный ключ для ребра, чтобы не рисовать его дважды
+          const key = [p1.x.toFixed(2), p1.z.toFixed(2), p2.x.toFixed(2), p2.z.toFixed(2)].sort().join('|');
+          if (!drawnEdges.has(key)) {
+            drawnEdges.add(key);
+
+            // Создаем метку (используем функцию из линейки, но с другим цветом)
+            const text = Math.round(dist * 1000) + ' мм';
+            const sprite = makeLabelSprite(text);
+            
+            // Красим рамку метки в синий цвет (чтобы отличать от линейки)
+            const canvas = sprite.material.map.image;
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#5b8cff';
+            ctx.stroke();
+            
+            // Позиционируем метку по центру ребра
+            const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            sprite.position.copy(mid);
+            
+            openingDimsGroup.add(sprite);
+          }
+        }
+      }
+    }
+    edges.dispose();
   });
+  
+  openingDimsGroup.visible = openingDimsVisible;
+  console.log(`%c✔ Построено размеров проёма: ${openingDimsGroup.children.length}`, 'color:#31d0aa');
 }
+
+// Обработчик кнопки
+document.getElementById('btnShowOpeningDims').addEventListener('click', (e) => {
+  openingDimsVisible = !openingDimsVisible;
+  e.currentTarget.classList.toggle('active', openingDimsVisible);
+  
+  // Если размеры еще не построены, строим их при первом нажатии
+  if (openingDimsGroup.children.length === 0) {
+    buildOpeningDimensions();
+  }
+  
+  openingDimsGroup.visible = openingDimsVisible;
+  showToast(openingDimsVisible ? 'Размеры проёма включены' : 'Размеры проёма скрыты', true);
+});
 /* ---- Загрузить все DXF для плоских категорий ---- */
 let dxfLoadPromise = null;
 
