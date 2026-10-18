@@ -2076,26 +2076,6 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   СТАРТ
-   ═══════════════════════════════════════════════════════════════ */
-
-    console.log('price.json не найден:', err.message);
-  }
-
-  /* 2. Модель */
-  MODEL_FILE = await findModelFile();
-  if (!MODEL_FILE) {
-    showToast('Файл .dae не найден в репозитории.');
-    return;
-  }
-
-  /* 3. BOM (XML) */
-  await loadBOM();
-
-  /* 4. Загрузка модели */
-  loadCollada(MODEL_FILE, MODEL_FILE);
-})();
 
 console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
 console.log('Линейка — M. Человечек — H.');
