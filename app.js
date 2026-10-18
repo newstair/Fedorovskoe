@@ -1641,25 +1641,34 @@ function applyColor(categoryKey) {
   }
 }
 function applyFinish(categoryKey) {
-  const meshes = elementGroups[categoryKey] || [];
   const choice = currentFinish[categoryKey];
-  meshes.forEach((obj) => {
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const orig = originalMaterialState.get(obj.uuid);
-    mats.forEach((m) => {
-      if (!m) return;
-      if (!choice) {
-        if (orig) {
-          m.map = orig.map;
-          if (m.color) m.color.setHex(orig.color);
+
+  for (const groupKey in elementGroups) {
+    // Ищем группы, которые заканчиваются на _treads, _risers и т.д.
+    if (!groupKey.endsWith('_' + categoryKey)) continue;
+    
+    const meshes = elementGroups[groupKey];
+    meshes.forEach((obj) => {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const orig = originalMaterialState.get(obj.uuid);
+
+      mats.forEach((m) => {
+        if (!m) return;
+        if (!choice) {
+          // Если выбрано "Как в проекте" — возвращаем исходную текстуру и цвет
+          if (orig) {
+            m.map = orig.map;
+            if (m.color) m.color.setHex(orig.color);
+          }
+        } else {
+          // Если выбрана текстура — накладываем её и сбрасываем цвет (тонировку)
+          m.map = getTexture(choice.file);
+          if (m.color) m.color.setHex(0xffffff); 
         }
-      } else {
-        m.map = getTexture(choice.file);
-        if (m.color) m.color.setHex(0xffffff);
-      }
-      m.needsUpdate = true;
+        m.needsUpdate = true;
+      });
     });
-  });
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
