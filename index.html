@@ -2515,11 +2515,24 @@ function classifyBOMItems(items, floor) {
   const result = { stair: {}, railing: {} };
   if (!items || !items.length) return result;
 
-  // Welcome risers — первые 2 по алфавиту среди деталей этой лестницы
-  const risers = items
-    .filter(d => d.type === 'Riser' && d.name && d.name.startsWith(floor + '_'))
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const welcomeRiserNames = risers.slice(0, 2).map(r => r.name);
+  // Детали этой лестницы
+  const stairItems = items.filter(d => d.name && d.name.startsWith(floor + '_'));
+
+  // Welcome steps — ступени с subtype='bullnose'
+  const welcomeSteps = stairItems.filter(d => d.type === 'Step' && d.subtype === 'bullnose');
+
+  // Welcome risers существуют ТОЛЬКО если есть welcome steps
+  let welcomeRiserNames = [];
+  if (welcomeSteps.length > 0) {
+    const risers = stairItems
+      .filter(d => d.type === 'Riser')
+      .sort((a, b) => {
+        const na = parseInt((a.name || '').replace(/\D+/g, ''), 10) || 0;
+        const nb = parseInt((b.name || '').replace(/\D+/g, ''), 10) || 0;
+        return na - nb;
+      });
+    welcomeRiserNames = risers.slice(0, welcomeSteps.length).map(r => r.name);
+  }
 
   items.forEach(d => {
     if (!d.name) return;
@@ -2540,6 +2553,7 @@ function classifyBOMItems(items, floor) {
     } else if (d.type === 'String') {
       catKey = (d.stringtype === 'cut') ? 'kosour' : 'stringers';
     } else if (d.type === 'Newel')      catKey = 'posts';
+    else if (d.type === 'NewelCap')     catKey = 'post_caps';
     else if (d.type === 'Handrail')     catKey = 'handrail';
     else if (d.type === 'Baluster')     catKey = 'baluster';
     else if (d.type === 'Covering')     catKey = 'covering';
