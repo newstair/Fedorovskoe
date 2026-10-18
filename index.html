@@ -750,14 +750,15 @@
         </div>
       </div>
 
-      <!-- Ограждение 2 этажа -->
+          <!-- Ограждение 2 этажа -->
       <div class="view-group">
         <div class="view-group-title">Ограждение 2 этажа</div>
         <div class="row">
+          <button class="btn active" id="el_r2_posts"><span class="ico">🏛</span> Столбы</button>
           <button class="btn active" id="el_r2_handrail"><span class="ico">➖</span> Поручень</button>
-          <button class="btn active" id="el_r2_bottomrail"><span class="ico">🪵</span> Подбаляс.</button>
         </div>
         <div class="row">
+          <button class="btn active" id="el_r2_bottomrail"><span class="ico">🪵</span> Подбаляс.</button>
           <button class="btn active" id="el_r2_baluster"><span class="ico">🪜</span> Балясины</button>
         </div>
       </div>
@@ -1151,7 +1152,7 @@ const elementGroups = {
   s2_welcome_steps: [], s2_welcome_risers: [],
   s2_handrail: [], s2_baluster: [], s2_posts: [], s2_covering: [],
   // Ограждение 2 этажа
-  r2_handrail: [], r2_bottomrail: [], r2_baluster: [],
+  r2_posts: [], r2_handrail: [], r2_bottomrail: [], r2_baluster: [],
   // Ограждение 3 этажа
   r3_posts: [], r3_handrail: [], r3_bottomrail: [], r3_baluster: [],
   // Прочее
@@ -1167,7 +1168,7 @@ const elementVisible = {
   s2_welcome_steps: true, s2_welcome_risers: true,
   s2_handrail: true, s2_baluster: true, s2_posts: true, s2_covering: true,
 
-  r2_handrail: true, r2_bottomrail: true, r2_baluster: true,
+  r2_posts: true, r2_handrail: true, r2_bottomrail: true, r2_baluster: true,
 
   r3_posts: true, r3_handrail: true, r3_bottomrail: true, r3_baluster: true,
 
@@ -2238,7 +2239,8 @@ const elementButtonMap = [
   ['el_s2_baluster', 's2_baluster'],
   ['el_s2_posts', 's2_posts'],
   ['el_s2_covering', 's2_covering'],
-  // Ограждение 2 этажа
+    // Ограждение 2 этажа
+  ['el_r2_posts', 'r2_posts'],
   ['el_r2_handrail', 'r2_handrail'],
   ['el_r2_bottomrail', 'r2_bottomrail'],
   ['el_r2_baluster', 'r2_baluster'],
