@@ -276,9 +276,9 @@ function classifyMaterial(str) {
   m = n.match(/^([12])_BA/i);
   if (m) return 's' + m[1] + '_baluster';
 
-  // 11. Обшивка проёма (FC1)
-  m = n.match(/^([12])_FC(\d+)/i);
-  if (m) return 's' + m[1] + '_fc' + m[2];
+  // 11. Обшивка проёма
+  m = n.match(/^([12])_FC/i);
+  if (m) return 's' + m[1] + '_covering';
 
   // 12. Наконечники столбов (Post cap)
   m = n.match(/^([12])_POST CAP/i);
@@ -1649,9 +1649,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
   for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
-        let items = classified[catKey];
-    if (items) {
-      items = items.filter(d => {
+       const items = classified[catKey];
         if (!d.name) return true;
         const m = d.name.match(/^(\d+)_(FC\d+)/i);
         if (!m) return true;
