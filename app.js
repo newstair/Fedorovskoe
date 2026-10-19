@@ -26,6 +26,7 @@ const FINISH_CATEGORIES = [
   { key: 'welcome_steps',   label: 'Приглас. ступени' },
   { key: 'welcome_risers',  label: 'Приглас. подступенки' },
   { key: 'handrail',        label: 'Поручень' },
+   { key: 'bottomrail',      label: 'Подбалясенник' },
   { key: 'baluster',        label: 'Балясины' },
   { key: 'posts',           label: 'Столбы' },
   { key: 'covering',        label: 'Панель перекрытия' }
@@ -1642,27 +1643,28 @@ function applyColor(categoryKey) {
         if (!m) return;
         
         // Если покраска выключена или цвет не выбран
-        if (!paintEnabled || !colorKey) {
+                if (!paintEnabled || !colorKey) {
           if (orig) {
             m.map = orig.map;
             if (m.color) m.color.setHex(orig.color);
           }
-          m.roughness = 0.8; // Матовое дерево
+          if (m.isMeshStandardMaterial) m.roughness = 0.8;
+          if (m.isMeshPhongMaterial) m.shininess = 10;
         } else {
-          // Если выбран Лак б/ц (clear)
           if (colorKey === 'clear') {
             if (orig && orig.map) m.map = orig.map;
-            if (m.color) m.color.setHex(0xffffff); // Без тонировки
-            m.roughness = 0.15; // Глянец (блеск лака)
+            if (m.color) m.color.setHex(0xffffff);
+            if (m.isMeshStandardMaterial) m.roughness = 0.1; // Сильный глянец для Standard
+            if (m.isMeshPhongMaterial) m.shininess = 150;    // Сильный глянец для Phong
           } else {
-            // Цветные краски
             if (colorKey === 'white' || colorKey === 'redwood' || colorKey === 'black') {
-              m.map = null; // Убираем текстуру для чистых цветов
+              m.map = null; 
             } else {
-              if (orig && orig.map) m.map = orig.map; // Оставляем текстуру для оттенков
+              if (orig && orig.map) m.map = orig.map; 
             }
             if (m.color) m.color.set(colorHex);
-            m.roughness = 0.5; // Полуматовая краска
+            if (m.isMeshStandardMaterial) m.roughness = 0.5;
+            if (m.isMeshPhongMaterial) m.shininess = 30;
           }
         }
         m.needsUpdate = true;
