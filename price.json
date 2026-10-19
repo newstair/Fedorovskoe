@@ -47,5 +47,18 @@
       "prices": { "pine": 10650, "beech": 18000, "ash": 26000, "oak": 35000 }
     }
   },
-  "paint": { "price_m2": 2400 }
+    "paints": {
+    "none":    { "name": "Без покраски",  "price_m2": 0 },
+    "clear":   { "name": "Лак б/ц",       "price_m2": 1500 },
+    "light":   { "name": "Светлый дуб",   "price_m2": 1700 },
+    "dark":    { "name": "Тёмный орех",   "price_m2": 1900 },
+    "redwood": { "name": "Красное дерево","price_m2": 1800 },
+    "mocha":   { "name": "Мокко",         "price_m2": 1800 },
+    "wenge":   { "name": "Венге",         "price_m2": 1800 },
+    "honey":   { "name": "Медовый",       "price_m2": 1800 },
+    "ash":     { "name": "Ясень",         "price_m2": 1800 },
+    "black":   { "name": "Черный",        "price_m2": 1800 },
+    "gray":    { "name": "Серый",         "price_m2": 1900 },
+    "white":   { "name": "Белый",         "price_m2": 1700 }
+  }
 }
