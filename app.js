@@ -222,19 +222,20 @@ const currentFinish = {
 };
 // Список из 12 цветов (пока заглушки, потом настроим оттенки)
 const COLOR_PALETTE = [
-  { name: 'Натуральный', hex: '#ffffff' }, // белый = без изменений
-  { name: 'Светлый дуб', hex: '#e6d5b8' },
-  { name: 'Тёмный орех', hex: '#5c3a21' },
-  { name: 'Венге', hex: '#3b2b2b' },
-  { name: 'Медовый', hex: '#d4a373' },
-  { name: 'Красное дерево', hex: '#8b1a1a' }, // Сделаем благородный темно-красный
-  { name: 'Мокко', hex: '#6f4e37' },
-  { name: 'Палисандр', hex: '#4a2525' },
-  { name: 'Клён', hex: '#f5deb3' },
-  { name: 'Черный', hex: '#1a1a1a' },
-  { name: 'Серый', hex: '#808080' },
-  { name: 'Белый', hex: '#ffffff' }           // Чистый белый
+  { key: 'clear',   name: 'Лак б/ц',        hex: '#ffffff' },
+  { key: 'light',   name: 'Светлый дуб',    hex: '#e6d5b8' },
+  { key: 'dark',    name: 'Тёмный орех',    hex: '#5c3a21' },
+  { key: 'redwood', name: 'Красное дерево', hex: '#8b1a1a' },
+  { key: 'mocha',   name: 'Мокко',          hex: '#6f4e37' },
+  { key: 'wenge',   name: 'Венге',          hex: '#3b2b2b' },
+  { key: 'honey',   name: 'Медовый',        hex: '#d4a373' },
+  { key: 'ash',     name: 'Ясень',          hex: '#f5deb3' },
+  { key: 'black',   name: 'Черный',         hex: '#1a1a1a' },
+  { key: 'gray',    name: 'Серый',          hex: '#808080' },
+  { key: 'white',   name: 'Белый',          hex: '#ffffff' }
 ];
+
+let paintEnabled = true; // Глобальный флаг покраски
 
 const currentColor = {
   treads: null, risers: null, stringers: null, kosour: null,
@@ -1613,36 +1614,42 @@ function buildColorPanel() {
 }
 
 function applyColor(categoryKey) {
-  const colorHex = currentColor[categoryKey];
+  const colorKey = currentColor[categoryKey];
+  const colorObj = COLOR_PALETTE.find(c => c.key === colorKey);
+  const colorHex = colorObj ? colorObj.hex : null;
 
   for (const groupKey in elementGroups) {
     if (!groupKey.endsWith('_' + categoryKey)) continue;
     
-    const meshes = elementGroups[groupKey];
-    meshes.forEach((obj) => {
+    elementGroups[groupKey].forEach((obj) => {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       const orig = originalMaterialState.get(obj.uuid);
 
       mats.forEach((m) => {
         if (!m) return;
         
-        if (!colorHex) {
-          // Возвращаем "Как в проекте" (текстура + родной цвет)
+        // Если покраска выключена или цвет не выбран
+        if (!paintEnabled || !colorKey) {
           if (orig) {
             m.map = orig.map;
             if (m.color) m.color.setHex(orig.color);
           }
+          m.roughness = 0.8; // Матовое дерево
         } else {
-          // Если выбран чистый белый или темно-красный, 
-          // убираем текстуру и делаем сплошной цвет (чтобы не было вишни)
-          if (colorHex === '#ffffff' || colorHex === '#8b1a1a') {
-            m.map = null;
-            if (m.color) m.color.set(colorHex);
-          } else {
-            // Остальные цвета (орех, дуб, мокко) накладываем поверх текстуры
-            // для эффекта тонирования
+          // Если выбран Лак б/ц (clear)
+          if (colorKey === 'clear') {
             if (orig && orig.map) m.map = orig.map;
+            if (m.color) m.color.setHex(0xffffff); // Без тонировки
+            m.roughness = 0.15; // Глянец (блеск лака)
+          } else {
+            // Цветные краски
+            if (colorKey === 'white' || colorKey === 'redwood' || colorKey === 'black') {
+              m.map = null; // Убираем текстуру для чистых цветов
+            } else {
+              if (orig && orig.map) m.map = orig.map; // Оставляем текстуру для оттенков
+            }
             if (m.color) m.color.set(colorHex);
+            m.roughness = 0.5; // Полуматовая краска
           }
         }
         m.needsUpdate = true;
