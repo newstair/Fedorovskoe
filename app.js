@@ -1407,6 +1407,8 @@ document.getElementById('bgColor').addEventListener('input', (e) => {
 
 /* ---------- Сброс ---------- */
 document.getElementById('btnReset').addEventListener('click', () => {
+     paintEnabled = true;
+  document.getElementById('btnGlobalPaint').classList.add('active');
    buildColorPanel();
      for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
     document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
@@ -1612,7 +1614,18 @@ function buildColorPanel() {
     colorRows.appendChild(row);
   });
 }
-
+document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
+  paintEnabled = !paintEnabled;
+  e.currentTarget.classList.toggle('active', paintEnabled);
+  
+  // Если выключаем покраску, визуально сбрасываем все цвета
+  if (!paintEnabled) {
+    for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
+  }
+  
+  buildColorPanel(); // Перерисовываем панель (чтобы скрыть/показать цвета)
+  showToast(paintEnabled ? 'Покраска включена' : 'Покраска отключена', true);
+});
 function applyColor(categoryKey) {
   const colorKey = currentColor[categoryKey];
   const colorObj = COLOR_PALETTE.find(c => c.key === colorKey);
@@ -1826,8 +1839,24 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       qty = items.length;
     }
 
-    const paintArea = getDXFPaintArea(catKey, items);
+        const paintArea = getDXFPaintArea(catKey, items);
 
+    // --- РАСЧЕТ ПОКРАСКИ ---
+    let paintCost = 0;
+    let paintName = 'Цвет не выбран';
+
+    if (paintEnabled) {
+      const selKey = currentColor[catKey] || 'clear'; // Если не выбран, считаем как лак
+      const paintData = priceData && priceData.paints ? priceData.paints[selKey] : null;
+      const unitPaintPrice = paintData ? paintData.price_m2 : 1800;
+      
+      paintCost = paintArea * unitPaintPrice;
+      paintName = paintData ? paintData.name : 'Лак б/ц';
+    } else {
+      paintName = 'Без покраски';
+    }
+
+    // --- ФОРМИРУЕМ ОБЪЕКТ КАТЕГОРИИ ---
     out.categories.push({
       key: catKey,
       name: cat.name,
@@ -1837,12 +1866,12 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       method: cat.method,
       paintArea: paintArea,
       materialCost: qty * unitPrice,
-      paintCost: paintArea * paintPrice
+      paintCost: paintCost,
+      paintName: paintName
     });
 
     out.materialTotal += qty * unitPrice;
-    out.paintTotal += paintArea * paintPrice;
-  }
+    out.paintTotal += paintCost;
 
   return out;
 }
@@ -2018,7 +2047,7 @@ function buildDynamicPanelButtons() {
           '<span>' + formatRub(cat.materialCost) + '</span>' +
         '</div>' +
         '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted);">' +
-          '<span>Покраска (' + cat.paintArea.toFixed(2) + ' м²)</span>' +
+          '<span>Покраска: ' + cat.paintName + ' (' + cat.paintArea.toFixed(2) + ' м²)</span>' +
           '<span>' + formatRub(cat.paintCost) + '</span>' +
         '</div>' +
         '<div class="price-cat-result" style="margin-top:8px; border-top:1px solid var(--border); padding-top:4px;">' +
