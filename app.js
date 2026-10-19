@@ -1814,7 +1814,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
   };
   if (!priceData || !priceData.categories) return out;
 
-    for (const catKey in priceData.categories) {
+  for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
     const items = classified[catKey];
     if (!items || !items.length) continue;
@@ -1839,14 +1839,14 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       qty = items.length;
     }
 
-        const paintArea = getDXFPaintArea(catKey, items);
+    const paintArea = getDXFPaintArea(catKey, items);
 
     // --- РАСЧЕТ ПОКРАСКИ ---
     let paintCost = 0;
     let paintName = 'Цвет не выбран';
 
     if (paintEnabled) {
-      const selKey = currentColor[catKey] || 'clear'; // Если не выбран, считаем как лак
+      const selKey = currentColor[catKey] || 'clear';
       const paintData = priceData && priceData.paints ? priceData.paints[selKey] : null;
       const unitPaintPrice = paintData ? paintData.price_m2 : 1800;
       
@@ -1856,7 +1856,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       paintName = 'Без покраски';
     }
 
-    // --- ФОРМИРУЕМ ОБЪЕКТ КАТЕГОРИИ ---
+    // --- СОХРАНЯЕМ В КАТЕГОРИЮ ---
     out.categories.push({
       key: catKey,
       name: cat.name,
@@ -1872,6 +1872,17 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
     out.materialTotal += qty * unitPrice;
     out.paintTotal += paintCost;
+  }
+
+  // Монтаж — только для лестниц
+  if (countMontage) {
+    const treadMatKey = getMaterialForKey('treads');
+    const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
+    let coef = 1.0;
+    if (classified.risers && classified.risers.length > 0) coef += 0.10;
+    const coveringCount = (classified.covering || []).length;
+    out.montageCost = baseMontage * coef + 1200 * coveringCount;
+  }
 
   return out;
 }
