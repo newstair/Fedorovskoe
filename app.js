@@ -1651,12 +1651,21 @@ function applyColor(categoryKey) {
           if (m.isMeshStandardMaterial) m.roughness = 0.8;
           if (m.isMeshPhongMaterial) m.shininess = 10;
         } else {
-          if (colorKey === 'clear') {
+                    if (colorKey === 'clear') {
             if (orig && orig.map) m.map = orig.map;
             if (m.color) m.color.setHex(0xffffff);
-            if (m.isMeshStandardMaterial) m.roughness = 0.1; // Сильный глянец для Standard
-            if (m.isMeshPhongMaterial) m.shininess = 150;    // Сильный глянец для Phong
-          } else {
+            
+            if (m.isMeshStandardMaterial) {
+              m.roughness = 0.05;     // Максимальная гладкость
+              m.metalness = 0.1;      // Легкий отблеск
+              m.roughnessMap = null;  // Отключаем карту шероховатости из DAE
+            }
+            if (m.isMeshPhongMaterial) {
+              m.shininess = 300;      // Очень сильный блеск
+              m.specular = new THREE.Color(0xffffff); // Белый блик
+              m.specularMap = null;   // Отключаем карту бликов из DAE
+            }
+          }
             if (colorKey === 'white' || colorKey === 'redwood' || colorKey === 'black') {
               m.map = null; 
             } else {
