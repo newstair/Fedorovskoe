@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
 import { ColladaLoader }  from 'three/addons/loaders/ColladaLoader.js';
 import { GLTFLoader }     from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 /* ═══════════════════════════════════════════════════════════════
    КОНСТАНТЫ
@@ -95,6 +96,8 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
 scene.background = new THREE.Color('#0f1116');
 
@@ -1654,10 +1657,11 @@ function applyColor(categoryKey) {
             if (orig && orig.map) m.map = orig.map;
             if (m.color) m.color.setHex(0xffffff);
             
-            if (m.isMeshStandardMaterial) {
-              m.roughness = 0.05;
-              m.metalness = 0.1;
-              m.roughnessMap = null;
+                       if (m.isMeshStandardMaterial) {
+              m.roughness = 0.1;       // Гладкая поверхность
+              m.metalness = 0.2;       // Легкий отблеск
+              m.envMapIntensity = 1.5; // Усиливаем отражение окружения
+              m.roughnessMap = null;   // Отключаем старые карты
             }
             if (m.isMeshPhongMaterial) {
               m.shininess = 300;
