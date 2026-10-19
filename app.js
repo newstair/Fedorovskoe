@@ -1590,7 +1590,7 @@ function buildColorPanel() {
       swatch.title = color.name;
       
       swatch.addEventListener('click', () => {
-        currentColor[cat.key] = color.hex;
+       currentColor[cat.key] = color.key;
         row.querySelector('.finish-current').textContent = color.name;
         options.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
         swatch.classList.add('selected');
