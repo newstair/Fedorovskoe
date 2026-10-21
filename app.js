@@ -1869,6 +1869,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     const items = classified[catKey];
     if (!items || !items.length) continue;
 
+    // Скрытые категории не участвуют в расчёте
     const visKey = prefix + '_' + catKey;
     if (elementVisible[visKey] === false) continue;
 
@@ -1890,9 +1891,9 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
     const paintArea = getDXFPaintArea(catKey, items);
 
+    // --- БАЛЯСИНЫ (Добавка за форму) ---
     let currentUnitPrice = unitPrice; 
     let extraName = '';
-
     if (catKey === 'baluster' && selectedBaluster !== 'original') {
       const bType = priceData.baluster_types && priceData.baluster_types[selectedBaluster];
       if (bType) {
@@ -1901,6 +1902,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       }
     }
 
+    // --- ПОКРАСКА ---
     let paintCost = 0;
     let paintName = 'Цвет не выбран';
 
@@ -1915,6 +1917,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       paintName = 'Без покраски';
     }
 
+    // --- СОХРАНЕНИЕ КАТЕГОРИИ ---
     out.categories.push({
       key: catKey,
       name: cat.name + extraName,
@@ -1932,6 +1935,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     out.paintTotal += paintCost;
   }
 
+  // --- МОНТАЖ ---
   if (countMontage) {
     const treadMatKey = getMaterialForKey('treads');
     const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
