@@ -1569,63 +1569,55 @@ function replaceBalustersInScene() {
     // Если группа выключена в конфигураторе, не добавляем новую
     if (elementVisible[groupKey] === false) return;
 
-       oldMesh.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(oldMesh);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-
-    const clone = template.clone(true);
+           oldMesh.updateMatrixWorld(true);
     
-    // Считаем габариты новой модели ДО масштабирования
+    // 1. Габариты старой балясины
+    const oldBox = new THREE.Box3().setFromObject(oldMesh);
+    const oldSize = oldBox.getSize(new THREE.Vector3());
+    const oldCenter = oldBox.getCenter(new THREE.Vector3());
+
+    // 2. Клонируем новую
+    const clone = template.clone(true);
+    clone.updateMatrixWorld(true);
+
+    // 3. Габариты новой балясины (до масштабирования)
     const tempBox = new THREE.Box3().setFromObject(clone);
     const tempSize = tempBox.getSize(new THREE.Vector3());
-    
-    // 1. Масштабируем по высоте
-    if (tempSize.y > 0.001 && size.y > 0.001) {
-      const scale = size.y / tempSize.y;
+
+    // 4. Масштабируем новую, чтобы высота (Y) совпала со старой
+    if (tempSize.y > 0.001 && oldSize.y > 0.001) {
+      const scale = oldSize.y / tempSize.y;
       clone.scale.set(scale, scale, scale);
     }
 
-    // 2. Привязываем к координатам (ставим в центр по X и Z, но в самый низ по Y)
-    clone.position.copy(center);
-    clone.position.y = box.min.y; // <--- ВОТ ЭТО СТАВИТ МОДЕЛЬ НА ПОЛ
-
-    // Поворачиваем так же, как старую
+    // 5. Копируем поворот старой балясины (ведь на лестнице они под наклоном)
     clone.quaternion.copy(oldMesh.getWorldQuaternion(new THREE.Quaternion()));
+    clone.updateMatrixWorld(true);
 
-    // 3. Накладываем текстуру дерева (чтобы не были белыми)
+    // 6. Позиционируем.
+    // Ставим по центру X и Z
+    clone.position.x = oldCenter.x;
+    clone.position.z = oldCenter.z;
+    
+    // А по Y вычисляем точную разницу между низом старой и низом новой
+    const newBoxAfterRotate = new THREE.Box3().setFromObject(clone);
+    clone.position.y += (oldBox.min.y - newBoxAfterRotate.min.y);
+
+    // 7. Накладываем текстуру дерева (чтобы не были белыми)
     clone.traverse((o) => {
       if (o.isMesh) {
         o.material = new THREE.MeshStandardMaterial({ 
-          map: getTexture('con_pine.bmp'), // Пока ставим сосну по умолчанию
+          map: getTexture('con_pine.bmp'), 
           roughness: 0.8
         });
+        o.castShadow = true; 
+        o.receiveShadow = true;
       }
     });
-    
-    // Масштабируем по высоте
-    if (tempSize.y > 0.001 && size.y > 0.001) {
-      const scale = size.y / tempSize.y;
-      clone.scale.set(scale, scale, scale);
-    }
 
-    // Ставим в те же координаты (по центру старой балясины)
-    clone.position.copy(center);
-    // Поворачиваем так же, как старую (если они повернуты)
-    clone.quaternion.copy(oldMesh.getWorldQuaternion(new THREE.Quaternion()));
-
-    // Немного опускаем вниз, если точка отсчета в середине (подгонка)
-    // (Если модель "висит" в воздухе, мы это поправим в следующем шаге)
-    
-    // Включаем тени
-    clone.traverse(o => { if(o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-
-    // Применяем текущий цвет/текстуру
+    // 8. Добавляем в сцену
     replacedBalustersGroup.add(clone);
-    
-    // Сохраняем ссылку на группу, чтобы гасить их вместе с оригиналом
     clone.userData.groupKey = groupKey;
-  });
 
   // Применяем выбранный цвет или текстуру к новым балясинам
   if (paintEnabled && currentColor['baluster']) {
