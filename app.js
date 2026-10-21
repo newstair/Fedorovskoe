@@ -757,7 +757,7 @@ function loadCollada(url, fileName) {
             }
           });
           m.needsUpdate = true;
-        });
+             });
 
                const matName = mats[0] && mats[0].name ? mats[0].name : '';
         const objName = obj.name || (obj.parent && obj.parent.name) || '';
@@ -1869,7 +1869,6 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     const items = classified[catKey];
     if (!items || !items.length) continue;
 
-    // Скрытые категории не участвуют в расчёте
     const visKey = prefix + '_' + catKey;
     if (elementVisible[visKey] === false) continue;
 
@@ -1890,11 +1889,10 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     }
 
     const paintArea = getDXFPaintArea(catKey, items);
-         // Цена материала по умолчанию
+
     let currentUnitPrice = unitPrice; 
     let extraName = '';
 
-    // Если выбрана не оригинальная балясина, добавляем стоимость обработки
     if (catKey === 'baluster' && selectedBaluster !== 'original') {
       const bType = priceData.baluster_types && priceData.baluster_types[selectedBaluster];
       if (bType) {
@@ -1902,6 +1900,49 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
         extraName = ' (' + bType.name + ')';
       }
     }
+
+    let paintCost = 0;
+    let paintName = 'Цвет не выбран';
+
+    if (paintEnabled) {
+      const selKey = currentColor[catKey] || 'clear';
+      const paintData = priceData && priceData.paints ? priceData.paints[selKey] : null;
+      const unitPaintPrice = paintData ? paintData.price_m2 : 1800;
+      
+      paintCost = paintArea * unitPaintPrice;
+      paintName = paintData ? paintData.name : 'Лак б/ц';
+    } else {
+      paintName = 'Без покраски';
+    }
+
+    out.categories.push({
+      key: catKey,
+      name: cat.name + extraName,
+      materialName: matInfo.name,
+      count: items.length,
+      qty: qty,
+      method: cat.method,
+      paintArea: paintArea,
+      materialCost: qty * currentUnitPrice,
+      paintCost: paintCost,
+      paintName: paintName
+    });
+
+    out.materialTotal += qty * currentUnitPrice;
+    out.paintTotal += paintCost;
+  }
+
+  if (countMontage) {
+    const treadMatKey = getMaterialForKey('treads');
+    const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
+    let coef = 1.0;
+    if (classified.risers && classified.risers.length > 0) coef += 0.10;
+    const coveringCount = (classified.covering || []).length;
+    out.montageCost = baseMontage * coef + 1200 * coveringCount;
+  }
+
+  return out;
+}
 
     // --- РАСЧЕТ ПОКРАСКИ ---
     let paintCost = 0;
