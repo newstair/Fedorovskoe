@@ -27,7 +27,7 @@ const FINISH_CATEGORIES = [
   { key: 'welcome_steps',   label: 'Приглас. ступени' },
   { key: 'welcome_risers',  label: 'Приглас. подступенки' },
   { key: 'handrail',        label: 'Поручень' },
-   { key: 'bottomrail',      label: 'Подбалясенник' },
+  { key: 'bottomrail',      label: 'Подбалясенник' },
   { key: 'baluster',        label: 'Балясины' },
   { key: 'posts',           label: 'Столбы' },
   { key: 'covering',        label: 'Панель перекрытия' }
@@ -167,19 +167,14 @@ let objectUrls   = [];
 const fileMap    = new Map();
 
 const elementGroups = {
-  // Лестница 1→2
   s1_treads: [], s1_risers: [], s1_stringers: [], s1_kosour: [],
   s1_welcome_steps: [], s1_welcome_risers: [],
   s1_handrail: [], s1_baluster: [], s1_posts: [], s1_covering: [],
-  // Лестница 2→3
   s2_treads: [], s2_risers: [], s2_stringers: [], s2_kosour: [],
   s2_welcome_steps: [], s2_welcome_risers: [],
   s2_handrail: [], s2_baluster: [], s2_posts: [], s2_covering: [],
-  // Ограждение 2 этажа
   r2_posts: [], r2_handrail: [], r2_bottomrail: [], r2_baluster: [],
-  // Ограждение 3 этажа
   r3_posts: [], r3_handrail: [], r3_bottomrail: [], r3_baluster: [],
-  // Прочее
   wall: [], opening: [], floor: [],
 };
 
@@ -187,15 +182,11 @@ const elementVisible = {
   s1_treads: true, s1_risers: true, s1_stringers: true, s1_kosour: true,
   s1_welcome_steps: true, s1_welcome_risers: true,
   s1_handrail: true, s1_baluster: true, s1_posts: true, s1_covering: true,
-
   s2_treads: true, s2_risers: true, s2_stringers: true, s2_kosour: true,
   s2_welcome_steps: true, s2_welcome_risers: true,
   s2_handrail: true, s2_baluster: true, s2_posts: true, s2_covering: true,
-
   r2_posts: true, r2_handrail: true, r2_bottomrail: true, r2_baluster: true,
-
   r3_posts: true, r3_handrail: true, r3_bottomrail: true, r3_baluster: true,
-
   wall: true, opening: true, floor: true,
 };
 
@@ -222,9 +213,9 @@ const originalMaterialState = new Map();
 const currentFinish = {
   treads: null, risers: null, stringers: null, kosour: null,
   welcome_steps: null, welcome_risers: null,
-  handrail: null, baluster: null, posts: null, covering: null,
+  handrail: null, bottomrail: null, baluster: null, posts: null, covering: null,
 };
-// Список из 12 цветов (пока заглушки, потом настроим оттенки)
+
 const COLOR_PALETTE = [
   { key: 'clear',   name: 'Лак б/ц',        hex: '#ffffff' },
   { key: 'light',   name: 'Светлый дуб',    hex: '#e6d5b8' },
@@ -239,79 +230,55 @@ const COLOR_PALETTE = [
   { key: 'white',   name: 'Белый',          hex: '#ffffff' }
 ];
 
-let paintEnabled = true; // Глобальный флаг покраски
+let paintEnabled = true; 
 let selectedBaluster = 'original';
 let balusterModels = {}; 
 
 const currentColor = {
   treads: null, risers: null, stringers: null, kosour: null,
   welcome_steps: null, welcome_risers: null,
-  handrail: null, baluster: null, posts: null, covering: null,
+  handrail: null, bottomrail: null, baluster: null, posts: null, covering: null,
 };
-/* ---------- Данные ---------- */
-let bomData = null;       // обратная совместимость (первый XML)
-  let priceData = null;
-let bomGroups = [];       // массив всех XML с этажами
 
-/* ---------- Точки для привязки линейки ---------- */
+let bomData = null;       
+let priceData = null;
+let bomGroups = [];       
+
 const allVertices = [];
 
 /* ═══════════════════════════════════════════════════════════════
-   КЛАССИФИКАЦИЯ МАТЕРИАЛОВ (для 3D-визуализации)
+   КЛАССИФИКАЦИЯ МАТЕРИАЛОВ
    ═══════════════════════════════════════════════════════════════ */
 function classifyMaterial(str) {
   if (!str) return null;
   const n = str.toUpperCase();
 
-  // 1. Свободный столб ограждения этажа (N_P1)
   let m = n.match(/^([123])_P\d/i);
   if (m) return 'r' + m[1] + '_posts';
-
-  // 2. Поручень ограждения этажа (N_HRFR...)
   m = n.match(/^([123])_HRFR/i);
   if (m) return 'r' + m[1] + '_handrail';
-
-  // 3. Подбалясенник ограждения этажа (N_BRFR...)
   m = n.match(/^([123])_BRFR/i);
   if (m) return 'r' + m[1] + '_bottomrail';
-
-  // 4. Балясины ограждения этажа (N_Ba1FR11...)
   m = n.match(/^([123])_BA\d*FR/i);
   if (m) return 'r' + m[1] + '_baluster';
 
-  // 5. Столбы лестницы (SP1-2L, StPR, EnPR)
   m = n.match(/^([12])_(SP|STPR|ENPR)/i);
   if (m) return 's' + m[1] + '_posts';
-
-  // 6. Тетива лестницы (St1L, St2R)
   m = n.match(/^([12])_ST/i);
   if (m) return 's' + m[1] + '_stringers';
-
-  // 7. Ступени
   m = n.match(/^([12])_TR/i);
   if (m) return 's' + m[1] + '_treads';
-
-  // 8. Подступенки
   m = n.match(/^([12])_RI/i);
   if (m) return 's' + m[1] + '_risers';
-
-  // 9. Поручень лестницы (HRR)
   m = n.match(/^([12])_HRR/i);
   if (m) return 's' + m[1] + '_handrail';
-
-  // 10. Балясины лестницы (Ba1R1R)
   m = n.match(/^([12])_BA/i);
   if (m) return 's' + m[1] + '_baluster';
-
-  // 11. Обшивка проёма
   m = n.match(/^([12])_FC/i);
   if (m) return 's' + m[1] + '_covering';
-
-  // 12. Наконечники столбов (Post cap)
   m = n.match(/^([12])_POST CAP/i);
   if (m) return 's' + m[1] + '_post_caps';
 
-  // Старый фоллбэк по материалу
   if (n.includes('TREAD'))         return 's1_treads';
   if (n.includes('RISER'))         return 's1_risers';
   if (n.includes('STRING'))        return 's1_stringers';
@@ -482,16 +449,14 @@ function meshSurfaceArea(obj) {
       a.fromBufferAttribute(pos, idx.getX(i));
       b.fromBufferAttribute(pos, idx.getX(i + 1));
       c.fromBufferAttribute(pos, idx.getX(i + 2));
-      total += new THREE.Vector3().subVectors(b, a)
-              .cross(new THREE.Vector3().subVectors(c, a)).length() * 0.5;
+      total += new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).length() * 0.5;
     }
   } else {
     for (let i = 0; i < pos.count; i += 3) {
       a.fromBufferAttribute(pos, i);
       b.fromBufferAttribute(pos, i + 1);
       c.fromBufferAttribute(pos, i + 2);
-      total += new THREE.Vector3().subVectors(b, a)
-              .cross(new THREE.Vector3().subVectors(c, a)).length() * 0.5;
+      total += new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).length() * 0.5;
     }
   }
   return total;
@@ -554,7 +519,7 @@ function parseBOM(xmlText) {
     handrailDim:   txt('handrail > dim'),
     balusterDim:   txt('baluster > dim'),
     newelName:     txt('newel > name'),
-        floorName:     txt('floor > name'),
+    floorName:     txt('floor > name'),
   };
 
   const details = xml.querySelectorAll('detail');
@@ -586,8 +551,6 @@ function parseBOM(xmlText) {
 
 async function loadBOM() {
   bomGroups = [];
-
-  // 1. Ищем все .xml через GitHub API
   let xmlFiles = [];
   try {
     const parts = location.pathname.split('/').filter(x => x);
@@ -597,16 +560,11 @@ async function loadBOM() {
       const r = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/');
       if (r.ok) {
         const files = await r.json();
-        xmlFiles = files
-          .filter(f => f.name && f.name.toLowerCase().endsWith('.xml'))
-          .map(f => f.name);
+        xmlFiles = files.filter(f => f.name && f.name.toLowerCase().endsWith('.xml')).map(f => f.name);
       }
     }
-  } catch (e) {
-    console.warn('GitHub API не сработал:', e.message);
-  }
+  } catch (e) { console.warn('GitHub API не сработал:', e.message); }
 
-  // 2. Fallback: если API не сработал, попробовать стандартный путь
   if (!xmlFiles.length && MODEL_FILE) {
     const fallback = MODEL_FILE.replace(/\.(dae|xml)$/i, '.xml');
     try {
@@ -622,7 +580,6 @@ async function loadBOM() {
 
   console.log('%c→ Найдено XML: ' + xmlFiles.length, 'color:#5b8cff;font-weight:bold');
 
-  // 3. Парсим каждый
   for (const name of xmlFiles) {
     try {
       const r = await fetch(name, { cache: 'no-store' });
@@ -632,34 +589,19 @@ async function loadBOM() {
       const text = decoder.decode(buf);
       const parsed = parseBOM(text);
 
-      // Определяем этаж из params.floorName
       let floor = 1;
       if (parsed.params && parsed.params.floorName) {
         const m = parsed.params.floorName.match(/(\d+)/);
         if (m) floor = parseInt(m[1], 10);
       }
 
-      bomGroups.push({
-        file: name,
-        floor: floor,
-        params: parsed.params,
-        items: parsed.items
-      });
-
-      console.log('%c✔ ' + name + ' (этаж ' + floor + ', ' + parsed.items.length + ' деталей)',
-                  'color:#31d0aa;font-weight:bold');
-    } catch (err) {
-      console.warn('Ошибка чтения ' + name + ':', err.message);
-    }
+      bomGroups.push({ file: name, floor: floor, params: parsed.params, items: parsed.items });
+      console.log('%c✔ ' + name + ' (этаж ' + floor + ', ' + parsed.items.length + ' деталей)', 'color:#31d0aa;font-weight:bold');
+    } catch (err) { console.warn('Ошибка чтения ' + name + ':', err.message); }
   }
 
-  // 4. Сортируем по этажу
   bomGroups.sort((a, b) => a.floor - b.floor);
-
-  // 5. Обратная совместимость: bomData = первый XML
-  if (bomGroups.length) {
-    bomData = { items: bomGroups[0].items, params: bomGroups[0].params };
-  }
+  if (bomGroups.length) bomData = { items: bomGroups[0].items, params: bomGroups[0].params };
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -689,10 +631,7 @@ async function findModelFile() {
       console.log('%c✔ Найден в репозитории: ' + dae.name, 'color:#31d0aa;font-weight:bold');
       return dae.name;
     }
-  } catch (e) {
-    console.warn('Автопоиск через API не сработал:', e.message);
-  }
-
+  } catch (e) { console.warn('Автопоиск через API не сработал:', e.message); }
   return null;
 }
 
@@ -706,14 +645,7 @@ function loadCollada(url, fileName) {
   for (const k in elementGroups) elementGroups[k] = [];
   allVertices.length = 0;
   originalMaterialState.clear();
-  while (openingDimsGroup.children.length) {
-    const c = openingDimsGroup.children.pop();
-    if (c.geometry) c.geometry.dispose();
-    if (c.material) c.material.dispose();
-  }
-  openingDimsVisible = false;
-  const btnDims = document.getElementById('btnShowOpeningDims');
-  if (btnDims) btnDims.classList.remove('active');
+  
   const loader = new ColladaLoader(manager);
   loader.load(url,
     (collada) => {
@@ -757,12 +689,13 @@ function loadCollada(url, fileName) {
             }
           });
           m.needsUpdate = true;
-             });
+        });
 
-               const matName = mats[0] && mats[0].name ? mats[0].name : '';
+        const matName = mats[0] && mats[0].name ? mats[0].name : '';
         const objName = obj.name || (obj.parent && obj.parent.name) || '';
         const group = classifyMaterial(objName) || classifyMaterial(matName);
-                if (group) {
+        
+        if (group) {
           if (!elementGroups[group]) elementGroups[group] = [];
           elementGroups[group].push(obj);
           if (group === 'wall' && isWindowTexture(matName)) obj.userData.isWindow = true;
@@ -832,8 +765,9 @@ function loadCollada(url, fileName) {
       applyGlassWalls();
       setHumanHeight(humanHeight);
       buildFinishPanel();
-       buildBalusterPanel();
-buildColorPanel();
+      buildBalusterPanel();
+      buildColorPanel();
+
       const modelName = fileName.replace(/\.(dae|xml)$/i, '');
       if (modelName) {
         document.title = '3D Viewer — ' + modelName;
@@ -859,7 +793,6 @@ buildColorPanel();
       panelEl.classList.remove('hidden');
       fitCamera();
 
-      // показываем кнопки расчёта и бланка
       priceBtn.style.display = 'inline-flex';
       document.getElementById('btnOrder').style.display = 'inline-flex';
     },
@@ -902,7 +835,7 @@ function animate() {
 resize();
 animate();
 
-/*  ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    ФИТ КАМЕРЫ
    ═══════════════════════════════════════════════════════════════ */
 function fitCamera() {
@@ -1180,7 +1113,6 @@ function setHumanMode(on) {
   canvas.classList.toggle('human-mode', on);
   humanHint.classList.toggle('show', on);
   if (on && rulerMode) setRulerMode(false);
-  // Плавающую плашку показываем только если человечек уже стоит
   floatHuman.classList.toggle('show', on && humanGroup.visible);
 }
 
@@ -1240,10 +1172,9 @@ document.querySelectorAll('.acc-header').forEach((h) => {
   h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
 });
 
-/* ---------- Видимость элементов ---------- */
 function applyElementVisibility() {
   for (const key in elementGroups) {
-        const visible = elementVisible[key] !== false;
+    const visible = elementVisible[key] !== false;
     elementGroups[key].forEach((obj) => { obj.visible = visible; });
   }
 }
@@ -1277,43 +1208,23 @@ function bindElementButton(id, key) {
     applyElementVisibility();
   });
 }
+
 const elementButtonMap = [
-  // Лестница 1→2
-  ['el_s1_treads', 's1_treads'],
-  ['el_s1_risers', 's1_risers'],
-  ['el_s1_stringers', 's1_stringers'],
-  ['el_s1_kosour', 's1_kosour'],
-  ['el_s1_welcome_steps', 's1_welcome_steps'],
-  ['el_s1_welcome_risers', 's1_welcome_risers'],
-  ['el_s1_handrail', 's1_handrail'],
-  ['el_s1_baluster', 's1_baluster'],
-  ['el_s1_posts', 's1_posts'],
-  ['el_s1_covering', 's1_covering'],
-  // Лестница 2→3
-  ['el_s2_treads', 's2_treads'],
-  ['el_s2_risers', 's2_risers'],
-  ['el_s2_stringers', 's2_stringers'],
-  ['el_s2_kosour', 's2_kosour'],
-  ['el_s2_welcome_steps', 's2_welcome_steps'],
-  ['el_s2_welcome_risers', 's2_welcome_risers'],
-  ['el_s2_handrail', 's2_handrail'],
-  ['el_s2_baluster', 's2_baluster'],
-  ['el_s2_posts', 's2_posts'],
-  ['el_s2_covering', 's2_covering'],
-    // Ограждение 2 этажа
-  ['el_r2_posts', 'r2_posts'],
-  ['el_r2_handrail', 'r2_handrail'],
-  ['el_r2_bottomrail', 'r2_bottomrail'],
-  ['el_r2_baluster', 'r2_baluster'],
-  // Ограждение 3 этажа
-  ['el_r3_posts', 'r3_posts'],
-  ['el_r3_handrail', 'r3_handrail'],
-  ['el_r3_bottomrail', 'r3_bottomrail'],
-  ['el_r3_baluster', 'r3_baluster'],
-  // Прочее
-  ['el_wall', 'wall'],
-  ['el_opening', 'opening'],
-  ['el_floor', 'floor'],
+  ['el_s1_treads', 's1_treads'], ['el_s1_risers', 's1_risers'],
+  ['el_s1_stringers', 's1_stringers'], ['el_s1_kosour', 's1_kosour'],
+  ['el_s1_welcome_steps', 's1_welcome_steps'], ['el_s1_welcome_risers', 's1_welcome_risers'],
+  ['el_s1_handrail', 's1_handrail'], ['el_s1_baluster', 's1_baluster'],
+  ['el_s1_posts', 's1_posts'], ['el_s1_covering', 's1_covering'],
+  ['el_s2_treads', 's2_treads'], ['el_s2_risers', 's2_risers'],
+  ['el_s2_stringers', 's2_stringers'], ['el_s2_kosour', 's2_kosour'],
+  ['el_s2_welcome_steps', 's2_welcome_steps'], ['el_s2_welcome_risers', 's2_welcome_risers'],
+  ['el_s2_handrail', 's2_handrail'], ['el_s2_baluster', 's2_baluster'],
+  ['el_s2_posts', 's2_posts'], ['el_s2_covering', 's2_covering'],
+  ['el_r2_posts', 'r2_posts'], ['el_r2_handrail', 'r2_handrail'],
+  ['el_r2_bottomrail', 'r2_bottomrail'], ['el_r2_baluster', 'r2_baluster'],
+  ['el_r3_posts', 'r3_posts'], ['el_r3_handrail', 'r3_handrail'],
+  ['el_r3_bottomrail', 'r3_bottomrail'], ['el_r3_baluster', 'r3_baluster'],
+  ['el_wall', 'wall'], ['el_opening', 'opening'], ['el_floor', 'floor'],
 ];
 
 elementButtonMap.forEach(([id, key]) => bindElementButton(id, key));
@@ -1348,7 +1259,6 @@ document.getElementById('floatHumanOff').addEventListener('click', () => {
   setHumanMode(false);
 });
 
-/* ---------- Ползунки человечка (в аккордеоне + в плашке) ---------- */
 function syncHumanHeightUI(cm) {
   heightSlider.value = cm;
   floatHeightSlider.value = cm;
@@ -1412,13 +1322,13 @@ document.getElementById('bgColor').addEventListener('input', (e) => {
   scene.background.set(e.target.value);
 });
 
-/* ---------- Сброс ---------- */
 document.getElementById('btnReset').addEventListener('click', () => {
-     paintEnabled = true;
+  paintEnabled = true;
   document.getElementById('btnGlobalPaint').classList.add('active');
-   buildColorPanel();
-     for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
-    document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
+  for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
+  buildColorPanel();
+  
+  document.querySelectorAll('[id^="el_s1_"], [id^="el_s2_"], [id^="el_r2_"], [id^="el_r3_"], #el_wall, #el_opening, #el_floor').forEach((b) => b.classList.add('active'));
   
   glassWalls = true;
   document.getElementById('btnGlass').classList.add('active');
@@ -1431,15 +1341,19 @@ document.getElementById('btnReset').addEventListener('click', () => {
   humanGroup.visible = false;
   humanRotation = 0;
   syncHumanRotationUI(0);
+  
+  selectedBaluster = 'original';
+  buildBalusterPanel();
+  
   for (const k in currentFinish) { currentFinish[k] = null; applyFinish(k); }
   buildFinishPanel();
+  
   const bg = '#0f1116';
   document.getElementById('bgColor').value = bg;
   scene.background.set(bg);
   if (currentModel) fitCamera();
 });
 
-/* ---------- Сохранить позицию в URL ---------- */
 document.getElementById('btnSavePos').addEventListener('click', () => {
   const p = camera.position;
   const t = controls.target;
@@ -1453,27 +1367,6 @@ document.getElementById('btnSavePos').addEventListener('click', () => {
   }).catch(() => prompt('Скопируйте ссылку вручную:', newUrl));
 });
 
-/* ---------- Восстановить камеру из URL ---------- */
-function applyCameraFromURL() {
-  const params = new URLSearchParams(location.search);
-  const camStr = params.get('cam');
-  const tgtStr = params.get('target');
-  if (!camStr) return false;
-  try {
-    const c = camStr.split(',').map(parseFloat);
-    const t = tgtStr ? tgtStr.split(',').map(parseFloat) : [0, 0, 0];
-    if (c.length === 3 && c.every(isFinite)) {
-      camera.position.set(c[0], c[1], c[2]);
-      controls.target.set(t[0] || 0, t[1] || 0, t[2] || 0);
-      camera.updateProjectionMatrix();
-      controls.update();
-      return true;
-    }
-  } catch (e) { /* ignore */ }
-  return false;
-}
-
-/* ---------- Горячие клавиши ---------- */
 window.addEventListener('keydown', (e) => {
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea') return;
@@ -1483,7 +1376,9 @@ window.addEventListener('keydown', (e) => {
     case 'm': document.getElementById('btnRuler').click(); break;
     case 'h': document.getElementById('btnHuman').click(); break;
   }
-});/* ═══════════════════════════════════════════════════════════════
+});
+
+/* ═══════════════════════════════════════════════════════════════
    ОТДЕЛКА (панель текстур)
    ═══════════════════════════════════════════════════════════════ */
 function buildFinishPanel() {
@@ -1518,8 +1413,7 @@ function buildFinishPanel() {
       opt.className = 'finish-option';
       opt.dataset.file = t.file;
       opt.dataset.name = t.name;
-      opt.innerHTML =
-        '<span class="swatch" style="background-image:url(' + t.file + ');"></span>' + t.name;
+      opt.innerHTML = '<span class="swatch" style="background-image:url(' + t.file + ');"></span>' + t.name;
       options.appendChild(opt);
     });
 
@@ -1550,12 +1444,43 @@ function buildFinishPanel() {
     finishRows.appendChild(row);
   });
 }
+
+function applyFinish(categoryKey) {
+  const choice = currentFinish[categoryKey];
+
+  for (const groupKey in elementGroups) {
+    if (!groupKey.endsWith('_' + categoryKey)) continue;
+    
+    const meshes = elementGroups[groupKey];
+    meshes.forEach((obj) => {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const orig = originalMaterialState.get(obj.uuid);
+
+      mats.forEach((m) => {
+        if (!m) return;
+        if (!choice) {
+          if (orig) {
+            m.map = orig.map;
+            if (m.color) m.color.setHex(orig.color);
+          }
+        } else {
+          m.map = getTexture(choice.file);
+          if (m.color) m.color.setHex(0xffffff); 
+        }
+        m.needsUpdate = true;
+      });
+    });
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   БАЛЯСИНЫ (ВЫБОР ФОРМЫ)
+   ═══════════════════════════════════════════════════════════════ */
 function buildBalusterPanel() {
   const container = document.getElementById('balusterButtons');
   if (!container) return;
   container.innerHTML = '';
 
-  // Кнопка "Как в проекте"
   const btnOrig = document.createElement('button');
   btnOrig.className = 'btn' + (selectedBaluster === 'original' ? ' active' : '');
   btnOrig.innerHTML = 'Как в проекте';
@@ -1568,7 +1493,6 @@ function buildBalusterPanel() {
   };
   container.appendChild(btnOrig);
 
-  // Кнопки 1-5
   for (let i = 1; i <= 5; i++) {
     const btn = document.createElement('button');
     btn.className = 'btn' + (selectedBaluster === String(i) ? ' active' : '');
@@ -1583,6 +1507,15 @@ function buildBalusterPanel() {
     container.appendChild(btn);
   }
 }
+
+function replaceBalustersInScene() {
+  console.log('3D-замена балясин на вид: ' + selectedBaluster);
+  // Сюда мы напишем код в следующем шаге
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ПОКРАСКА (панель цветов)
+   ═══════════════════════════════════════════════════════════════ */
 function buildColorPanel() {
   const colorRows = document.getElementById('colorRows');
   if (!colorRows) return;
@@ -1590,7 +1523,7 @@ function buildColorPanel() {
 
   FINISH_CATEGORIES.forEach((cat) => {
     const row = document.createElement('div');
-    row.className = 'finish-row'; // используем те же классы для аккордеона внутри
+    row.className = 'finish-row';
     row.dataset.key = cat.key;
 
     const header = document.createElement('div');
@@ -1605,7 +1538,6 @@ function buildColorPanel() {
     const options = document.createElement('div');
     options.className = 'color-options';
 
-    // Кнопка "Сброс"
     const optOrig = document.createElement('div');
     optOrig.className = 'color-swatch original';
     optOrig.innerHTML = '✕';
@@ -1620,9 +1552,8 @@ function buildColorPanel() {
     });
     options.appendChild(optOrig);
 
-    // Цвета
     COLOR_PALETTE.forEach((color) => {
-      if (color.name === 'Натуральный') return; // пропускаем белый, есть кнопка сброса
+      if (color.name === 'Натуральный') return;
       
       const swatch = document.createElement('div');
       swatch.className = 'color-swatch';
@@ -1630,7 +1561,7 @@ function buildColorPanel() {
       swatch.title = color.name;
       
       swatch.addEventListener('click', () => {
-       currentColor[cat.key] = color.key;
+        currentColor[cat.key] = color.key;
         row.querySelector('.finish-current').textContent = color.name;
         options.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
         swatch.classList.add('selected');
@@ -1654,18 +1585,7 @@ function buildColorPanel() {
     colorRows.appendChild(row);
   });
 }
-document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
-  paintEnabled = !paintEnabled;
-  e.currentTarget.classList.toggle('active', paintEnabled);
-  
-  // Если выключаем покраску, визуально сбрасываем все цвета
-  if (!paintEnabled) {
-    for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
-  }
-  buildBalusterPanel();
-  buildColorPanel(); // Перерисовываем панель (чтобы скрыть/показать цвета)
-  showToast(paintEnabled ? 'Покраска включена' : 'Покраска отключена', true);
-});
+
 function applyColor(categoryKey) {
   const colorKey = currentColor[categoryKey];
   const colorObj = COLOR_PALETTE.find(c => c.key === colorKey);
@@ -1692,12 +1612,11 @@ function applyColor(categoryKey) {
           if (colorKey === 'clear') {
             if (orig && orig.map) m.map = orig.map;
             if (m.color) m.color.setHex(0xffffff);
-            
-                       if (m.isMeshStandardMaterial) {
-              m.roughness = 0.1;       // Гладкая поверхность
-              m.metalness = 0.2;       // Легкий отблеск
-              m.envMapIntensity = 1.5; // Усиливаем отражение окружения
-              m.roughnessMap = null;   // Отключаем старые карты
+            if (m.isMeshStandardMaterial) {
+              m.roughness = 0.1;
+              m.metalness = 0.2;
+              m.envMapIntensity = 1.5;
+              m.roughnessMap = null;
             }
             if (m.isMeshPhongMaterial) {
               m.shininess = 300;
@@ -1720,36 +1639,18 @@ function applyColor(categoryKey) {
     });
   }
 }
-function applyFinish(categoryKey) {
-  const choice = currentFinish[categoryKey];
 
-  for (const groupKey in elementGroups) {
-    // Ищем группы, которые заканчиваются на _treads, _risers и т.д.
-    if (!groupKey.endsWith('_' + categoryKey)) continue;
-    
-    const meshes = elementGroups[groupKey];
-    meshes.forEach((obj) => {
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      const orig = originalMaterialState.get(obj.uuid);
-
-      mats.forEach((m) => {
-        if (!m) return;
-        if (!choice) {
-          // Если выбрано "Как в проекте" — возвращаем исходную текстуру и цвет
-          if (orig) {
-            m.map = orig.map;
-            if (m.color) m.color.setHex(orig.color);
-          }
-        } else {
-          // Если выбрана текстура — накладываем её и сбрасываем цвет (тонировку)
-          m.map = getTexture(choice.file);
-          if (m.color) m.color.setHex(0xffffff); 
-        }
-        m.needsUpdate = true;
-      });
-    });
+document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
+  paintEnabled = !paintEnabled;
+  e.currentTarget.classList.toggle('active', paintEnabled);
+  
+  if (!paintEnabled) {
+    for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
   }
-}
+  buildBalusterPanel();
+  buildColorPanel(); 
+  showToast(paintEnabled ? 'Покраска включена' : 'Покраска отключена', true);
+});
 
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ BOM-ЭЛЕМЕНТОВ
@@ -1758,13 +1659,9 @@ function classifyBOMItems(items, floor) {
   const result = { stair: {}, railing: {} };
   if (!items || !items.length) return result;
 
-  // Детали этой лестницы
   const stairItems = items.filter(d => d.name && d.name.startsWith(floor + '_'));
-
-  // Welcome steps — ступени с subtype='bullnose'
   const welcomeSteps = stairItems.filter(d => d.type === 'Step' && d.subtype === 'bullnose');
 
-  // Welcome risers существуют ТОЛЬКО если есть welcome steps
   let welcomeRiserNames = [];
   if (welcomeSteps.length > 0) {
     const risers = stairItems
@@ -1827,30 +1724,34 @@ function getMaterialForKey(key) {
 function getMaterialInfo(matKey) {
   const mats = priceData && priceData.materials ? priceData.materials : {};
   return mats[matKey] || mats.pine || { name: 'Сосна' };
-}/* Площадь покраски для категории — берём из 3D-модели (DAE) */
-function getDAEPaintArea(catKey) {
-  if (!bomData) return 0;
-  const grouped = classifyBOMItems();
-  const items = grouped[catKey] || [];
+}
+
+function getDXFPaintArea(catKey, items) {
+  if (!items || !items.length) return 0;
+
+  if (catKey === 'posts') {
+    let total = 0;
+    items.forEach(d => { total += (4 * 80 * d.L) / 1e6; });
+    return total;
+  }
+  if (catKey === 'baluster') {
+    let total = 0;
+    items.forEach(d => { total += (4 * 45 * d.L) / 1e6; });
+    return total;
+  }
+
   let total = 0;
-  items.forEach(d => { total += 2 * (d.W * d.L) / 1e6; });
+  items.forEach(d => {
+    if (d.name && d.name.endsWith('End')) return;
+    const dxf = d.name ? dxfCache[d.name] : null;
+    if (dxf) {
+      const T = d.T / 1000;
+      total += (dxf.area / 1e6) * 2 + (dxf.perimeter / 1000) * T;
+    } else {
+      total += 2 * (d.W * d.L) / 1e6;
+    }
+  });
   return total;
-}
-
-
-/* Площадь покраски для одной детали — полная поверхность коробки.
-   Красим ВСЕ грани, кроме примыкающих (упрощённо — все 6). */
-function paintAreaForBox(T, W, L) {
-  // в мм → м²
-  return (2 * (W * L + W * T + L * T)) / 1e6;
-}
-/* Боковая поверхность (для length-категорий, у которых торцы малы) */
-function paintAreaLateral(T, W, L) {
-  return (2 * (W + T) * L) / 1e6;
-}
-/* Цилиндр (для балясин) */
-function paintAreaCyl(W, L) {
-  return (Math.PI * W * L) / 1e6;
 }
 
 function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
@@ -1869,7 +1770,6 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     const items = classified[catKey];
     if (!items || !items.length) continue;
 
-    // Скрытые категории не участвуют в расчёте
     const visKey = prefix + '_' + catKey;
     if (elementVisible[visKey] === false) continue;
 
@@ -1891,9 +1791,9 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
 
     const paintArea = getDXFPaintArea(catKey, items);
 
-    // --- БАЛЯСИНЫ (Добавка за форму) ---
     let currentUnitPrice = unitPrice; 
     let extraName = '';
+
     if (catKey === 'baluster' && selectedBaluster !== 'original') {
       const bType = priceData.baluster_types && priceData.baluster_types[selectedBaluster];
       if (bType) {
@@ -1902,7 +1802,6 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       }
     }
 
-    // --- ПОКРАСКА ---
     let paintCost = 0;
     let paintName = 'Цвет не выбран';
 
@@ -1917,7 +1816,6 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       paintName = 'Без покраски';
     }
 
-    // --- СОХРАНЕНИЕ КАТЕГОРИИ ---
     out.categories.push({
       key: catKey,
       name: cat.name + extraName,
@@ -1935,53 +1833,6 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     out.paintTotal += paintCost;
   }
 
-  // --- МОНТАЖ ---
-  if (countMontage) {
-    const treadMatKey = getMaterialForKey('treads');
-    const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
-    let coef = 1.0;
-    if (classified.risers && classified.risers.length > 0) coef += 0.10;
-    const coveringCount = (classified.covering || []).length;
-    out.montageCost = baseMontage * coef + 1200 * coveringCount;
-  }
-
-  return out;
-}
-
-    // --- РАСЧЕТ ПОКРАСКИ ---
-    let paintCost = 0;
-    let paintName = 'Цвет не выбран';
-
-    if (paintEnabled) {
-      const selKey = currentColor[catKey] || 'clear';
-      const paintData = priceData && priceData.paints ? priceData.paints[selKey] : null;
-      const unitPaintPrice = paintData ? paintData.price_m2 : 1800;
-      
-      paintCost = paintArea * unitPaintPrice;
-      paintName = paintData ? paintData.name : 'Лак б/ц';
-    } else {
-      paintName = 'Без покраски';
-    }
-
-    // --- СОХРАНЯЕМ В КАТЕГОРИЮ ---
-    out.categories.push({
-      key: catKey,
-      name: cat.name + extraName,
-      materialName: matInfo.name,
-      count: items.length,
-      qty: qty,
-      method: cat.method,
-      paintArea: paintArea,
-      materialCost: qty * unitPrice,
-      paintCost: paintCost,
-      paintName: paintName
-    });
-
-  
-currentUnitPrice
-  }
-
-  // Монтаж — только для лестниц
   if (countMontage) {
     const treadMatKey = getMaterialForKey('treads');
     const baseMontage = (treadMatKey === 'pine') ? 25000 : 30000;
@@ -2011,24 +1862,10 @@ function calculatePrice(km) {
   for (const group of bomGroups) {
     const classified = classifyBOMItems(group.items, group.floor);
 
-    // Лестница N → N+1
-    const stairResult = buildGroupResult(
-      's' + group.floor,
-      'Лестница ' + group.floor + '→' + (group.floor + 1),
-      classified.stair,
-      paintPrice,
-      true
-    );
+    const stairResult = buildGroupResult('s' + group.floor, 'Лестница ' + group.floor + '→' + (group.floor + 1), classified.stair, paintPrice, true);
     if (stairResult.categories.length) result.groups.push(stairResult);
 
-    // Ограждение этажа N+1
-    const railingResult = buildGroupResult(
-      'r' + (group.floor + 1),
-      'Ограждение ' + (group.floor + 1) + ' этажа',
-      classified.railing,
-      paintPrice,
-      false
-    );
+    const railingResult = buildGroupResult('r' + (group.floor + 1), 'Ограждение ' + (group.floor + 1) + ' этажа', classified.railing, paintPrice, false);
     if (railingResult.categories.length) result.groups.push(railingResult);
 
     result.materialTotal += stairResult.materialTotal + railingResult.materialTotal;
@@ -2036,7 +1873,6 @@ function calculatePrice(km) {
     result.montageCost += stairResult.montageCost;
   }
 
-  /* Доставка: 60 ₽/км + 800 подача, минимум 4500 */
   const base = 60 * (km || 0) + 800;
   result.deliveryCost = Math.max(4500, base);
 
@@ -2044,72 +1880,19 @@ function calculatePrice(km) {
   return result;
 }
 
- 
-  
 /* ═══════════════════════════════════════════════════════════════
-   МОДАЛКА СМЕТЫ (БЕЗ формул)
+   МОДАЛКА СМЕТЫ
    ═══════════════════════════════════════════════════════════════ */
 let currentKm = 0;
 
 function buildPriceModal() {
-  if (!priceData) {
-    priceBody.innerHTML = '<div class="price-empty">Файл price.json не найден</div>';
-    return;
-  }
-function buildDynamicPanelButtons() {
-  const container1 = document.getElementById('container_s1_covering');
-  const container2 = document.getElementById('container_s2_covering');
-  if (container1) container1.innerHTML = '';
-  if (container2) container2.innerHTML = '';
-
-  if (!bomGroups || !bomGroups.length) return;
-
-  bomGroups.forEach(group => {
-    const floor = group.floor;
-    const container = document.getElementById('container_s' + floor + '_covering');
-    if (!container) return;
-
-    // Находим все панели для этой лестницы
-    const panels = group.items.filter(d => d.type === 'Covering');
-    
-    panels.forEach(d => {
-      const panelName = d.name.split('_')[1]; // FC1, FC2
-      const key = 's' + floor + '_' + panelName.toLowerCase(); // s1_fc1
-      
-      if (!elementGroups[key]) elementGroups[key] = [];
-      if (elementVisible[key] === undefined) elementVisible[key] = true;
-
-      const btn = document.createElement('button');
-      btn.className = 'btn active';
-      btn.id = 'el_' + key;
-      btn.innerHTML = '<span class="ico">📏</span> Панель ' + panelName.replace('FC', '');
-      
-      btn.addEventListener('click', () => {
-        elementVisible[key] = !elementVisible[key];
-        btn.classList.toggle('active', elementVisible[key]);
-        applyElementVisibility();
-      });
-
-      container.appendChild(btn);
-    });
-  });
-}
- function replaceBalustersInScene() {
-  console.log('3D-замена балясин на вид: ' + selectedBaluster);
-  // Сюда мы напишем код в следующем шаге
-}  
-   function buildPriceModal() {
   if (!bomGroups || !bomGroups.length) {
     priceBody.innerHTML = '<div class="price-empty">XML-файлы из Staircon не найдены.<br>Загрузите их в репозиторий.</div>';
     return;
   }
 
-  // Автозагрузка DXF при первом открытии
   if (Object.keys(dxfCache).length < 46) {
-    priceBody.innerHTML = '<div class="price-empty">' +
-      '<div class="spinner" style="margin-bottom:14px;"></div>' +
-      '<div id="dxfProgress">Загрузка DXF… <b>0 / 46</b></div>' +
-      '</div>';
+    priceBody.innerHTML = '<div class="price-empty"><div class="spinner" style="margin-bottom:14px;"></div><div id="dxfProgress">Загрузка DXF… <b>0 / 46</b></div></div>';
     const prog = document.getElementById('dxfProgress');
     loadAllDXF((done, total) => {
       if (prog) prog.innerHTML = 'Загрузка DXF… <b>' + done + ' / ' + total + '</b>';
@@ -2120,13 +1903,9 @@ function buildDynamicPanelButtons() {
   const result = calculatePrice(currentKm);
   priceBody.innerHTML = '';
 
-  // Поле км
   const kmRow = document.createElement('div');
   kmRow.className = 'input-row';
-  kmRow.innerHTML =
-    '<label>📍 Расстояние доставки:</label>' +
-    '<input type="number" id="deliveryKmInput" min="0" step="1" value="' + currentKm + '">' +
-    '<span class="unit">км</span>';
+  kmRow.innerHTML = '<label>📍 Расстояние доставки:</label><input type="number" id="deliveryKmInput" min="0" step="1" value="' + currentKm + '"><span class="unit">км</span>';
   priceBody.appendChild(kmRow);
   kmRow.querySelector('input').addEventListener('input', (e) => {
     const v = parseInt(e.target.value, 10);
@@ -2134,47 +1913,31 @@ function buildDynamicPanelButtons() {
     buildPriceModal();
   });
 
-  // Группы с категориями
   result.groups.forEach((g) => {
     const groupBlock = document.createElement('div');
     groupBlock.className = 'price-group';
-
     const groupTotal = g.materialTotal + g.paintTotal;
     const title = document.createElement('div');
     title.className = 'price-group-title';
-    title.innerHTML = '<span>' + g.title + '</span>' +
-                      '<span class="sum">' + formatRub(groupTotal) + '</span>';
+    title.innerHTML = '<span>' + g.title + '</span><span class="sum">' + formatRub(groupTotal) + '</span>';
     groupBlock.appendChild(title);
 
     const body = document.createElement('div');
     body.className = 'price-group-body';
 
-       g.categories.forEach((cat) => {
+    g.categories.forEach((cat) => {
       const block = document.createElement('div');
       block.className = 'price-cat';
-      
-      // Форматируем количество
       let qtyText = '';
       if (cat.method === 'm2') qtyText = cat.qty.toFixed(3) + ' м²';
       else if (cat.method === 'length') qtyText = cat.qty.toFixed(2) + ' м';
       else if (cat.method === 'count') qtyText = cat.qty + ' шт';
 
       block.innerHTML =
-        '<div class="price-cat-name">' +
-          '<span>' + cat.name + '</span>' +
-          '<span class="material">' + cat.materialName + '</span>' +
-        '</div>' +
-        '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:4px;">' +
-          '<span>Изготовление (' + qtyText + ')</span>' +
-          '<span>' + formatRub(cat.materialCost) + '</span>' +
-        '</div>' +
-        '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted);">' +
-          '<span>Покраска: ' + cat.paintName + ' (' + cat.paintArea.toFixed(2) + ' м²)</span>' +
-          '<span>' + formatRub(cat.paintCost) + '</span>' +
-        '</div>' +
-        '<div class="price-cat-result" style="margin-top:8px; border-top:1px solid var(--border); padding-top:4px;">' +
-          formatRub(cat.materialCost + cat.paintCost) +
-        '</div>';
+        '<div class="price-cat-name"><span>' + cat.name + '</span><span class="material">' + cat.materialName + '</span></div>' +
+        '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:4px;"><span>Изготовление (' + qtyText + ')</span><span>' + formatRub(cat.materialCost) + '</span></div>' +
+        '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted);"><span>Покраска: ' + cat.paintName + ' (' + cat.paintArea.toFixed(2) + ' м²)</span><span>' + formatRub(cat.paintCost) + '</span></div>' +
+        '<div class="price-cat-result" style="margin-top:8px; border-top:1px solid var(--border); padding-top:4px;">' + formatRub(cat.materialCost + cat.paintCost) + '</div>';
       body.appendChild(block);
     });
 
@@ -2182,10 +1945,9 @@ function buildDynamicPanelButtons() {
     priceBody.appendChild(groupBlock);
   });
 
-  // Итоги
   const totals = document.createElement('div');
   totals.className = 'price-totals';
-    totals.innerHTML =
+  totals.innerHTML =
     '<div class="price-totals-row"><span>Изготовление</span><span>' + formatRub(result.materialTotal) + '</span></div>' +
     '<div class="price-totals-row"><span>Покраска</span><span>' + formatRub(result.paintTotal) + '</span></div>' +
     '<div class="price-totals-row"><span>Доставка (' + result.deliveryKm + ' км)</span><span>' + formatRub(result.deliveryCost) + '</span></div>' +
@@ -2209,9 +1971,7 @@ function buildParamsModal() {
     if (value === null || value === undefined || value === '' || value === 0) return;
     const el = document.createElement('div');
     el.className = 'param-row' + (section ? ' section' : '');
-    el.innerHTML = section
-      ? '<span>' + label + '</span>'
-      : '<span class="label">' + label + '</span><span class="value">' + value + '</span>';
+    el.innerHTML = section ? '<span>' + label + '</span>' : '<span class="label">' + label + '</span><span class="value">' + value + '</span>';
     paramsBody.appendChild(el);
   }
 
@@ -2256,7 +2016,6 @@ function buildOrderModal() {
   const dateStr = today.toLocaleDateString('ru-RU');
   const modelName = (MODEL_FILE || '').replace(/\.(dae|xml)$/i, '');
 
-  /* --- Шапка --- */
   const header = document.createElement('div');
   header.className = 'order-section';
   header.innerHTML =
@@ -2268,7 +2027,6 @@ function buildOrderModal() {
     '</div>';
   orderBody.appendChild(header);
 
-  /* --- Вид сверху (PDF) --- */
   const pdfSec = document.createElement('div');
   pdfSec.className = 'order-section';
   pdfSec.innerHTML =
@@ -2278,7 +2036,6 @@ function buildOrderModal() {
     '</div>';
   orderBody.appendChild(pdfSec);
 
-  /* --- 3D-вид --- */
   let shotSrc = '';
   try {
     renderer.render(scene, camera);
@@ -2294,7 +2051,6 @@ function buildOrderModal() {
     orderBody.appendChild(shotSec);
   }
 
-  /* --- Параметры --- */
   if (bomData.params) {
     const p = bomData.params;
     const rows = [];
@@ -2317,17 +2073,16 @@ function buildOrderModal() {
     }
   }
 
-  /* --- Состав заказа --- */
-  const grouped = classifyBOMItems();
+  const grouped = classifyBOMItems(bomData.items, bomData.params.floorName ? parseInt(bomData.params.floorName.match(/(\d+)/)[1], 10) : 1);
 
   const tableRows = [];
   let idx = 0;
   for (const catKey in priceData.categories) {
     const cat = priceData.categories[catKey];
-    const items = grouped[catKey];
+    const items = grouped.stair[catKey];
     if (!items || !items.length) continue;
 
-    const found = result.categories.find(c => c.key === catKey);
+    const found = result.groups[0].categories.find(c => c.key === catKey);
     if (!found) continue;
 
     idx++;
@@ -2354,7 +2109,6 @@ function buildOrderModal() {
     '</table>';
   orderBody.appendChild(tableSec);
 
-  /* --- Итоги --- */
   const totalsSec = document.createElement('div');
   totalsSec.className = 'order-section';
   totalsSec.innerHTML =
@@ -2368,7 +2122,6 @@ function buildOrderModal() {
     '</div>';
   orderBody.appendChild(totalsSec);
 
-  /* --- Срок изготовления --- */
   const leadSec = document.createElement('div');
   leadSec.className = 'order-section';
   leadSec.innerHTML =
@@ -2380,9 +2133,7 @@ function buildOrderModal() {
   orderBody.appendChild(leadSec);
 }
 
-/* ---------- Скачать PDF ---------- */
 document.getElementById('orderDownload').addEventListener('click', () => {
-  // 1. Открываем оригинальный PDF-чертёж в новой вкладке — браузер позволит сохранить
   const a = document.createElement('a');
   a.href = encodeURI(ORDER_PDF_FILE);
   a.download = ORDER_PDF_FILE;
@@ -2393,7 +2144,6 @@ document.getElementById('orderDownload').addEventListener('click', () => {
   showToast('PDF открыт. Сохраните через Ctrl+S', true);
 });
 
-/* ---------- Поделиться ---------- */
 document.getElementById('orderShare').addEventListener('click', async () => {
   const url = location.origin + location.pathname + location.search;
   const title = 'Бланк заказа · ' + (document.title || '3D Viewer');
@@ -2440,11 +2190,8 @@ window.addEventListener('keydown', (e) => {
 /* ═══════════════════════════════════════════════════════════════
    DXF ПАРСЕР + ЗАГРУЗЧИК
    ═══════════════════════════════════════════════════════════════ */
-
-/* Кэш: { "1_Tr3": {area, perimeter}, ... } в мм² и мм */
 const dxfCache = {};
 
-/* ---- Парсер DXF ---- */
 function parseDXF(text) {
   const lines = text.split(/\r?\n/).map(s => s.trim());
   const pairs = [];
@@ -2505,7 +2252,6 @@ function parseDXF(text) {
   return { polylines };
 }
 
-/* ---- Площадь и периметр одной полилинии (с дугами) ---- */
 function polylineAreaAndPerimeter(vertices) {
   const n = vertices.length;
   if (n < 3) return { area: 0, perimeter: 0 };
@@ -2537,7 +2283,6 @@ function polylineAreaAndPerimeter(vertices) {
   return { area: Math.abs(area), perimeter };
 }
 
-/* ---- Загрузить один DXF (с fallback на .dxf / .DXF) ---- */
 async function loadOneDXF(name) {
   const urls = [name + '.DXF', name + '.dxf'];
   for (const url of urls) {
@@ -2555,100 +2300,7 @@ async function loadOneDXF(name) {
   }
   return null;
 }
-/* ═══════════════════════════════════════════════════════════════
-   РАЗМЕРЫ ПРОЁМА (ГЕОМЕТРИЧЕСКИЙ АНАЛИЗ)
-   ═══════════════════════════════════════════════════════════════ */
-let openingDimsVisible = false;
-const openingDimsGroup = new THREE.Group();
-scene.add(openingDimsGroup);
 
-function buildOpeningDimensions() {
-  // Очищаем старые размеры
-  while (openingDimsGroup.children.length) {
-    const c = openingDimsGroup.children.pop();
-    if (c.geometry) c.geometry.dispose();
-    if (c.material && c.material.map) c.material.map.dispose();
-    if (c.material) c.material.dispose();
-  }
-
-  // Собираем все меши проёма (полы перекрытий, где есть проём)
-  const coverMeshes = [...(elementGroups['s1_covering'] || []), ...(elementGroups['s2_covering'] || [])];
-  if (!coverMeshes.length) return;
-
-  coverMeshes.forEach(mesh => {
-    mesh.updateMatrixWorld(true);
-    const geom = mesh.geometry;
-    if (!geom) return;
-
-    // Находим максимальную высоту (верхнюю грань) для этого меша
-    const pos = geom.attributes.position;
-    let maxY = -Infinity;
-    for (let i = 0; i < pos.count; i++) {
-      const y = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld).y;
-      if (y > maxY) maxY = y;
-    }
-
-    // Ищем рёбра с помощью EdgesGeometry
-    const edges = new THREE.EdgesGeometry(geom, 30); 
-    const edgePos = edges.attributes.position;
-    
-    const drawnEdges = new Set(); // Чтобы не дублировать линии
-
-    for (let i = 0; i < edgePos.count; i += 2) {
-      const p1 = new THREE.Vector3().fromBufferAttribute(edgePos, i).applyMatrix4(mesh.matrixWorld);
-      const p2 = new THREE.Vector3().fromBufferAttribute(edgePos, i + 1).applyMatrix4(mesh.matrixWorld);
-
-      // Оставляем только рёбра на верхней грани (допуск 10 мм)
-      if (Math.abs(p1.y - maxY) < 0.01 && Math.abs(p2.y - maxY) < 0.01) {
-        const dist = p1.distanceTo(p2);
-        
-        // Игнорируем слишком короткие рёбра (например, скругления < 50 мм)
-        if (dist > 0.05) {
-          // Создаем уникальный ключ для ребра, чтобы не рисовать его дважды
-          const key = [p1.x.toFixed(2), p1.z.toFixed(2), p2.x.toFixed(2), p2.z.toFixed(2)].sort().join('|');
-          if (!drawnEdges.has(key)) {
-            drawnEdges.add(key);
-
-            // Создаем метку (используем функцию из линейки, но с другим цветом)
-            const text = Math.round(dist * 1000) + ' мм';
-            const sprite = makeLabelSprite(text);
-            
-            // Красим рамку метки в синий цвет (чтобы отличать от линейки)
-            const canvas = sprite.material.map.image;
-            const ctx = canvas.getContext('2d');
-            ctx.strokeStyle = '#5b8cff';
-            ctx.stroke();
-            
-            // Позиционируем метку по центру ребра
-            const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-            sprite.position.copy(mid);
-            
-            openingDimsGroup.add(sprite);
-          }
-        }
-      }
-    }
-    edges.dispose();
-  });
-  
-  openingDimsGroup.visible = openingDimsVisible;
-  console.log(`%c✔ Построено размеров проёма: ${openingDimsGroup.children.length}`, 'color:#31d0aa');
-}
-
-// Обработчик кнопки
-document.getElementById('btnShowOpeningDims').addEventListener('click', (e) => {
-  openingDimsVisible = !openingDimsVisible;
-  e.currentTarget.classList.toggle('active', openingDimsVisible);
-  
-  // Если размеры еще не построены, строим их при первом нажатии
-  if (openingDimsGroup.children.length === 0) {
-    buildOpeningDimensions();
-  }
-  
-  openingDimsGroup.visible = openingDimsVisible;
-  showToast(openingDimsVisible ? 'Размеры проёма включены' : 'Размеры проёма скрыты', true);
-});
-/* ---- Загрузить все DXF для плоских категорий ---- */
 let dxfLoadPromise = null;
 
 async function loadAllDXF(progressCb) {
@@ -2656,7 +2308,6 @@ async function loadAllDXF(progressCb) {
   dxfLoadPromise = (async () => {
     if (!bomGroups || !bomGroups.length) return;
 
-    /* Собираем ВСЕ имена деталей из ВСЕХ XML-групп */
     const allNames = new Set();
     bomGroups.forEach(group => {
       const classified = classifyBOMItems(group.items, group.floor);
@@ -2673,9 +2324,7 @@ async function loadAllDXF(progressCb) {
     });
 
     const toLoad = Array.from(allNames);
-
-    console.log('%c→ Загрузка ' + toLoad.length + ' DXF...',
-                'color:#5b8cff;font-weight:bold');
+    console.log('%c→ Загрузка ' + toLoad.length + ' DXF...', 'color:#5b8cff;font-weight:bold');
 
     let done = 0;
     const concurrency = 8;
@@ -2694,50 +2343,92 @@ async function loadAllDXF(progressCb) {
     await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
     const ok = Object.keys(dxfCache).length;
-    console.log('%c✔ DXF загружено: ' + ok + ' / ' + toLoad.length,
-                'color:#31d0aa;font-weight:bold');
+    console.log('%c✔ DXF загружено: ' + ok + ' / ' + toLoad.length, 'color:#31d0aa;font-weight:bold');
     return dxfCache;
   })();
   return dxfLoadPromise;
 }
 
-/* ---- Площадь покраски из DXF для одной категории ---- */
-function getDXFPaintArea(catKey, items) {
-  if (!items || !items.length) return 0;
+/* ═══════════════════════════════════════════════════════════════
+   РАЗМЕРЫ ПРОЁМА
+   ═══════════════════════════════════════════════════════════════ */
+let openingDimsVisible = false;
+const openingDimsGroup = new THREE.Group();
+scene.add(openingDimsGroup);
 
-  /* Столбы — из XML: 4 × 80 × L */
-  if (catKey === 'posts') {
-    let total = 0;
-    items.forEach(d => { total += (4 * 80 * d.L) / 1e6; });
-    return total;
-  }
-  /* Балясины — из XML: 4 × 45 × L */
-  if (catKey === 'baluster') {
-    let total = 0;
-    items.forEach(d => { total += (4 * 45 * d.L) / 1e6; });
-    return total;
+function buildOpeningDimensions() {
+  while (openingDimsGroup.children.length) {
+    const c = openingDimsGroup.children.pop();
+    if (c.geometry) c.geometry.dispose();
+    if (c.material && c.material.map) c.material.map.dispose();
+    if (c.material) c.material.dispose();
   }
 
-  /* Плоские — из DXF, с fallback на XML */
-  let total = 0;
-  items.forEach(d => {
-    if (d.name && d.name.endsWith('End')) return;
-    const dxf = d.name ? dxfCache[d.name] : null;
-    if (dxf) {
-      const T = d.T / 1000;
-      total += (dxf.area / 1e6) * 2 + (dxf.perimeter / 1000) * T;
-    } else {
-      total += 2 * (d.W * d.L) / 1e6;
+  const coverMeshes = [...(elementGroups['s1_covering'] || []), ...(elementGroups['s2_covering'] || [])];
+  if (!coverMeshes.length) return;
+
+  coverMeshes.forEach(mesh => {
+    mesh.updateMatrixWorld(true);
+    const geom = mesh.geometry;
+    if (!geom) return;
+
+    const pos = geom.attributes.position;
+    let maxY = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const y = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld).y;
+      if (y > maxY) maxY = y;
     }
+
+    const edges = new THREE.EdgesGeometry(geom, 30); 
+    const edgePos = edges.attributes.position;
+    const drawnEdges = new Set(); 
+
+    for (let i = 0; i < edgePos.count; i += 2) {
+      const p1 = new THREE.Vector3().fromBufferAttribute(edgePos, i).applyMatrix4(mesh.matrixWorld);
+      const p2 = new THREE.Vector3().fromBufferAttribute(edgePos, i + 1).applyMatrix4(mesh.matrixWorld);
+
+      if (Math.abs(p1.y - maxY) < 0.01 && Math.abs(p2.y - maxY) < 0.01) {
+        const dist = p1.distanceTo(p2);
+        if (dist > 0.05) {
+          const key = [p1.x.toFixed(2), p1.z.toFixed(2), p2.x.toFixed(2), p2.z.toFixed(2)].sort().join('|');
+          if (!drawnEdges.has(key)) {
+            drawnEdges.add(key);
+            const text = Math.round(dist * 1000) + ' мм';
+            const sprite = makeLabelSprite(text);
+            const canvas = sprite.material.map.image;
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#5b8cff';
+            ctx.stroke();
+            const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            sprite.position.copy(mid);
+            openingDimsGroup.add(sprite);
+          }
+        }
+      }
+    }
+    edges.dispose();
   });
-  return total;
+  
+  openingDimsGroup.visible = openingDimsVisible;
+  console.log(`%c✔ Построено размеров проёма: ${openingDimsGroup.children.length}`, 'color:#31d0aa');
 }
+
+document.getElementById('btnShowOpeningDims').addEventListener('click', (e) => {
+  openingDimsVisible = !openingDimsVisible;
+  e.currentTarget.classList.toggle('active', openingDimsVisible);
+  
+  if (openingDimsGroup.children.length === 0) {
+    buildOpeningDimensions();
+  }
+  
+  openingDimsGroup.visible = openingDimsVisible;
+  showToast(openingDimsVisible ? 'Размеры проёма включены' : 'Размеры проёма скрыты', true);
+});
 
 /* ═══════════════════════════════════════════════════════════════
    СТАРТ
    ═══════════════════════════════════════════════════════════════ */
 (async () => {
-  /* 1. price.json */
   try {
     const r = await fetch('price.json', { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -2747,19 +2438,15 @@ function getDXFPaintArea(catKey, items) {
     console.log('price.json не найден:', err.message);
   }
 
-  /* 2. Модель */
   MODEL_FILE = await findModelFile();
   if (!MODEL_FILE) {
     showToast('Файл .dae не найден. Загрузите его в репозиторий.');
     return;
   }
 
-  /* 3. BOM (XML) */
   await loadBOM();
-
-  /* 4. Загрузка модели */
   loadCollada(MODEL_FILE, MODEL_FILE);
 })();
 
 console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
-console.log('Линейка — M. Человечек — H.');  
+console.log('Линейка — M. Человечек — H.');
