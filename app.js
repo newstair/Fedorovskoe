@@ -1569,16 +1569,39 @@ function replaceBalustersInScene() {
     // Если группа выключена в конфигураторе, не добавляем новую
     if (elementVisible[groupKey] === false) return;
 
-    oldMesh.updateMatrixWorld(true);
+       oldMesh.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(oldMesh);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
 
     const clone = template.clone(true);
     
-    // Вычисляем высоту шаблона
+    // Считаем габариты новой модели ДО масштабирования
     const tempBox = new THREE.Box3().setFromObject(clone);
     const tempSize = tempBox.getSize(new THREE.Vector3());
+    
+    // 1. Масштабируем по высоте
+    if (tempSize.y > 0.001 && size.y > 0.001) {
+      const scale = size.y / tempSize.y;
+      clone.scale.set(scale, scale, scale);
+    }
+
+    // 2. Привязываем к координатам (ставим в центр по X и Z, но в самый низ по Y)
+    clone.position.copy(center);
+    clone.position.y = box.min.y; // <--- ВОТ ЭТО СТАВИТ МОДЕЛЬ НА ПОЛ
+
+    // Поворачиваем так же, как старую
+    clone.quaternion.copy(oldMesh.getWorldQuaternion(new THREE.Quaternion()));
+
+    // 3. Накладываем текстуру дерева (чтобы не были белыми)
+    clone.traverse((o) => {
+      if (o.isMesh) {
+        o.material = new THREE.MeshStandardMaterial({ 
+          map: getTexture('con_pine.bmp'), // Пока ставим сосну по умолчанию
+          roughness: 0.8
+        });
+      }
+    });
     
     // Масштабируем по высоте
     if (tempSize.y > 0.001 && size.y > 0.001) {
