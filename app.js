@@ -1618,12 +1618,9 @@ function replaceBalustersInScene() {
     // 8. Добавляем в сцену
     replacedBalustersGroup.add(clone);
     clone.userData.groupKey = groupKey;
+     });
+   }
 
-  // Применяем выбранный цвет или текстуру к новым балясинам
-  if (paintEnabled && currentColor['baluster']) {
-    // (Здесь мы чуть позже применим краску, если нужно)
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════
    ПОКРАСКА (панель цветов)
