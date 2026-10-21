@@ -1854,6 +1854,18 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     }
 
     const paintArea = getDXFPaintArea(catKey, items);
+         // Цена материала по умолчанию
+    let currentUnitPrice = unitPrice; 
+    let extraName = '';
+
+    // Если выбрана не оригинальная балясина, добавляем стоимость обработки
+    if (catKey === 'baluster' && selectedBaluster !== 'original') {
+      const bType = priceData.baluster_types && priceData.baluster_types[selectedBaluster];
+      if (bType) {
+        currentUnitPrice += (bType.extra_cost || 0);
+        extraName = ' (' + bType.name + ')';
+      }
+    }
 
     // --- РАСЧЕТ ПОКРАСКИ ---
     let paintCost = 0;
@@ -1873,7 +1885,7 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
     // --- СОХРАНЯЕМ В КАТЕГОРИЮ ---
     out.categories.push({
       key: catKey,
-      name: cat.name,
+      name: cat.name + extraName,
       materialName: matInfo.name,
       count: items.length,
       qty: qty,
