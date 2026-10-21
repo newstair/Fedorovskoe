@@ -1550,6 +1550,39 @@ function buildFinishPanel() {
     finishRows.appendChild(row);
   });
 }
+function buildBalusterPanel() {
+  const container = document.getElementById('balusterButtons');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // Кнопка "Как в проекте"
+  const btnOrig = document.createElement('button');
+  btnOrig.className = 'btn' + (selectedBaluster === 'original' ? ' active' : '');
+  btnOrig.innerHTML = 'Как в проекте';
+  btnOrig.style.flex = '1 1 100%';
+  btnOrig.onclick = () => {
+    selectedBaluster = 'original';
+    buildBalusterPanel();
+    replaceBalustersInScene();
+    buildPriceModal();
+  };
+  container.appendChild(btnOrig);
+
+  // Кнопки 1-5
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (selectedBaluster === String(i) ? ' active' : '');
+    btn.innerHTML = 'Вид ' + i;
+    btn.style.flex = '1 1 40%';
+    btn.onclick = () => {
+      selectedBaluster = String(i);
+      buildBalusterPanel();
+      replaceBalustersInScene();
+      buildPriceModal();
+    };
+    container.appendChild(btn);
+  }
+}
 function buildColorPanel() {
   const colorRows = document.getElementById('colorRows');
   if (!colorRows) return;
@@ -2016,7 +2049,11 @@ function buildDynamicPanelButtons() {
     });
   });
 }
-   
+ function replaceBalustersInScene() {
+  console.log('3D-замена балясин на вид: ' + selectedBaluster);
+  // Сюда мы напишем код в следующем шаге
+}  
+   function buildPriceModal() {
   if (!bomGroups || !bomGroups.length) {
     priceBody.innerHTML = '<div class="price-empty">XML-файлы из Staircon не найдены.<br>Загрузите их в репозиторий.</div>';
     return;
