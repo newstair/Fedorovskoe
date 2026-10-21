@@ -761,7 +761,17 @@ function loadCollada(url, fileName) {
       currentModel = model;
       scene.add(currentModel);
 
-      applyElementVisibility();
+      function applyElementVisibility() {
+  for (const key in elementGroups) {
+    const visible = elementVisible[key] !== false;
+    elementGroups[key].forEach((obj) => { obj.visible = visible; });
+  }
+  // Синхронизируем новые балясины
+  replacedBalustersGroup.children.forEach(obj => {
+    const visible = elementVisible[obj.userData.groupKey] !== false;
+    obj.visible = visible;
+  });
+}
       applyGlassWalls();
       setHumanHeight(humanHeight);
       buildFinishPanel();
@@ -1015,6 +1025,14 @@ let humanTemplate = null;
 let humanTemplateHeight = 1.8;
 
 const humanLoader = new GLTFLoader();
+/* ---------- Загрузка 5 моделей балясин ---------- */
+const balusterLoader = new GLTFLoader();
+for (let i = 1; i <= 5; i++) {
+  balusterLoader.load('baluster_' + i + '.glb', (gltf) => {
+    balusterModels[i] = gltf.scene;
+    console.log('%c✔ Загружена baluster_' + i + '.glb', 'color:#31d0aa');
+  }, undefined, (err) => console.warn('Ошибка загрузки baluster_' + i + '.glb:', err));
+}
 humanLoader.load(HUMAN_FILE, (gltf) => {
   humanTemplate = gltf.scene;
   const box = new THREE.Box3().setFromObject(humanTemplate);
@@ -1508,9 +1526,88 @@ function buildBalusterPanel() {
   }
 }
 
+const replacedBalustersGroup = new THREE.Group();
+scene.add(replacedBalustersGroup);
+
 function replaceBalustersInScene() {
-  console.log('3D-замена балясин на вид: ' + selectedBaluster);
-  // Сюда мы напишем код в следующем шаге
+  // 1. Очищаем предыдущие замены
+  while (replacedBalustersGroup.children.length) {
+    const c = replacedBalustersGroup.children.pop();
+    if (c.geometry) c.geometry.dispose();
+  }
+
+  // 2. Если выбрано "Как в проекте" — показываем старые, скрываем новые
+  const allOriginalBalusters = [
+    ...(elementGroups['s1_baluster'] || []), ...(elementGroups['s2_baluster'] || []),
+    ...(elementGroups['r2_baluster'] || []), ...(elementGroups['r3_baluster'] || [])
+  ];
+
+  if (selectedBaluster === 'original') {
+    allOriginalBalusters.forEach(m => m.visible = elementVisible[m.userData.groupKey] !== false);
+    return;
+  }
+
+  // 3. Скрываем старые балясины
+  allOriginalBalusters.forEach(m => m.visible = false);
+
+  // 4. Получаем шаблон новой балясины
+  const template = balusterModels[selectedBaluster];
+  if (!template) {
+    showToast('Модель балясины еще не загрузилась. Подождите.', true);
+    return;
+  }
+
+  // 5. Клонируем новую модель на место каждой старой
+  allOriginalBalusters.forEach(oldMesh => {
+    // Нам нужно узнать, к какой группе видимости относится эта балясина
+    let groupKey = 's1_baluster'; // по умолчанию
+    for (const k in elementGroups) {
+      if (k.includes('baluster') && elementGroups[k].includes(oldMesh)) {
+        groupKey = k; break;
+      }
+    }
+    // Если группа выключена в конфигураторе, не добавляем новую
+    if (elementVisible[groupKey] === false) return;
+
+    oldMesh.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(oldMesh);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    const clone = template.clone(true);
+    
+    // Вычисляем высоту шаблона
+    const tempBox = new THREE.Box3().setFromObject(clone);
+    const tempSize = tempBox.getSize(new THREE.Vector3());
+    
+    // Масштабируем по высоте
+    if (tempSize.y > 0.001 && size.y > 0.001) {
+      const scale = size.y / tempSize.y;
+      clone.scale.set(scale, scale, scale);
+    }
+
+    // Ставим в те же координаты (по центру старой балясины)
+    clone.position.copy(center);
+    // Поворачиваем так же, как старую (если они повернуты)
+    clone.quaternion.copy(oldMesh.getWorldQuaternion(new THREE.Quaternion()));
+
+    // Немного опускаем вниз, если точка отсчета в середине (подгонка)
+    // (Если модель "висит" в воздухе, мы это поправим в следующем шаге)
+    
+    // Включаем тени
+    clone.traverse(o => { if(o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+
+    // Применяем текущий цвет/текстуру
+    replacedBalustersGroup.add(clone);
+    
+    // Сохраняем ссылку на группу, чтобы гасить их вместе с оригиналом
+    clone.userData.groupKey = groupKey;
+  });
+
+  // Применяем выбранный цвет или текстуру к новым балясинам
+  if (paintEnabled && currentColor['baluster']) {
+    // (Здесь мы чуть позже применим краску, если нужно)
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
