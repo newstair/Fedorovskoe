@@ -832,6 +832,7 @@ function loadCollada(url, fileName) {
       applyGlassWalls();
       setHumanHeight(humanHeight);
       buildFinishPanel();
+       buildBalusterPanel();
 buildColorPanel();
       const modelName = fileName.replace(/\.(dae|xml)$/i, '');
       if (modelName) {
@@ -1628,7 +1629,7 @@ document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
   if (!paintEnabled) {
     for (const k in currentColor) { currentColor[k] = null; applyColor(k); }
   }
-  
+  buildBalusterPanel();
   buildColorPanel(); // Перерисовываем панель (чтобы скрыть/показать цвета)
   showToast(paintEnabled ? 'Покраска включена' : 'Покраска отключена', true);
 });
