@@ -2547,3 +2547,5 @@ document.getElementById('btnShowOpeningDims').addEventListener('click', (e) => {
 
 console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-size:14px');
 console.log('Линейка — M. Человечек — H.');
+window.elementGroups = elementGroups;
+window.scene = scene;
