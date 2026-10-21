@@ -1977,8 +1977,8 @@ function buildGroupResult(prefix, title, classified, paintPrice, countMontage) {
       paintName: paintName
     });
 
-   currentUnitPrice:
-out.materialTotal += qty * currentUnitPrice;
+  
+currentUnitPrice
   }
 
   // Монтаж — только для лестниц
