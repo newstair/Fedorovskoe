@@ -60,7 +60,7 @@
     "black":   { "name": "Черный",        "price_m2": 1800 },
     "gray":    { "name": "Серый",         "price_m2": 1900 },
     "white":   { "name": "Белый",         "price_m2": 1700 }
-  }
+ },
    "baluster_types": {
     "1": { "name": "Вид 1", "extra_cost": 0 },
     "2": { "name": "Вид 2", "extra_cost": 100 },
