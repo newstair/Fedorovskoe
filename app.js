@@ -240,6 +240,8 @@ const COLOR_PALETTE = [
 ];
 
 let paintEnabled = true; // Глобальный флаг покраски
+let selectedBaluster = 'original';
+let balusterModels = {}; 
 
 const currentColor = {
   treads: null, risers: null, stringers: null, kosour: null,
