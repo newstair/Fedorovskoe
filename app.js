@@ -1530,7 +1530,32 @@ const replacedBalustersGroup = new THREE.Group();
 scene.add(replacedBalustersGroup);
 
 function replaceBalustersInScene() {
-  // 1. ЖЕСТКАЯ ОЧИСТКА ВСЕХ СТАРЫХ ЗАМЕН И ИХ МАТЕРИАЛОВ
+  // 1. САМАЯ ЖЕСТКАЯ ОЧИСТКА
+  // Проходим по всей сцене и удаляем всё, что похоже на наши розовые балясины
+  const toRemove = [];
+  scene.traverse((obj) => {
+    // Если это группа, которую мы создавали (wrapper), или меш с розовым материалом
+    if (obj.isGroup && obj.userData.groupKey) {
+      toRemove.push(obj);
+    } else if (obj.isMesh && obj.material && obj.material.color && obj.material.color.getHex() === 0xff00ff) {
+      toRemove.push(obj);
+    }
+  });
+
+  toRemove.forEach((obj) => {
+    if (obj.parent) obj.parent.remove(obj);
+    obj.traverse((o) => {
+      if (o.isMesh) {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+          else o.material.dispose();
+        }
+      }
+    });
+  });
+
+  // Очищаем группу на всякий случай
   while (replacedBalustersGroup.children.length > 0) {
     const child = replacedBalustersGroup.children[0];
     replacedBalustersGroup.remove(child);
@@ -1544,8 +1569,6 @@ function replaceBalustersInScene() {
       }
     });
   }
-  
-  // ВАЖНО: Очищаем массив детей принудительно (на случай глюков Three.js)
   replacedBalustersGroup.children = []; 
 
   const allOriginalBalusters = [
@@ -1553,14 +1576,13 @@ function replaceBalustersInScene() {
     ...(elementGroups['r2_baluster'] || []), ...(elementGroups['r3_baluster'] || [])
   ];
 
-  // 2. ЕСЛИ ВЫБРАНО "КАК В ПРОЕКТЕ" — ВОЗВРАЩАЕМ ВСЁ НА МЕСТО
+  // 2. Если выбрано "Как в проекте"
   if (selectedBaluster === 'original') {
-    // Показываем всю лестницу (лечим то, что мы случайно скрыли)
+    // Возвращаем видимость лестнице
     scene.traverse((obj) => {
         if (obj.isMesh || obj.isGroup) obj.visible = true;
     });
-    
-    // Возвращаем старые балясины
+    // Восстанавливаем старые балясины
     allOriginalBalusters.forEach(m => {
         let groupKey = 's1_baluster';
         for (const k in elementGroups) {
@@ -1568,15 +1590,11 @@ function replaceBalustersInScene() {
         }
         m.visible = elementVisible[groupKey] !== false;
     });
-    
-    applyElementVisibility(); // На всякий случай синхронизируем кнопки
     return;
   }
 
-  // 3. СКРЫВАЕМ ТОЛЬКО САМИ СТАРЫЕ БАЛЯСИНЫ (без родителей!)
-  allOriginalBalusters.forEach(m => {
-    m.visible = false;
-  });
+  // 3. Скрываем старые балясины
+  allOriginalBalusters.forEach(m => m.visible = false);
 
   // 4. Получаем шаблон
   const template = balusterModels[selectedBaluster];
@@ -1589,13 +1607,14 @@ function replaceBalustersInScene() {
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   
-  // Определяем, по какой оси лежит длинная сторона
+  // Находим самую длинную сторону (высоту)
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
+  
+  // Определяем, по какой оси лежит высота
   let axisToRotate = null;
   if (Math.abs(rawSize.x - maxDim) < 0.001) axisToRotate = 'x';
   else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
-  // Один общий материал для всех
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
 
   // 5. Клонируем
@@ -1624,17 +1643,17 @@ function replaceBalustersInScene() {
     
     clone.updateMatrixWorld(true);
 
-    // Масштабируем ТОЛЬКО по высоте
+    // Масштабируем пропорционально
     const orientedBox = new THREE.Box3().setFromObject(clone);
     const orientedSize = orientedBox.getSize(new THREE.Vector3());
     
     if (orientedSize.y > 0.001) {
       const scaleY = oldSize.y / orientedSize.y;
-      clone.scale.set(1, scaleY, 1);
+      clone.scale.set(scaleY, scaleY, scaleY); 
     }
     clone.updateMatrixWorld(true);
 
-    // Центрируем по X/Z и ставим низ на 0
+    // Центрируем и ставим на пол
     const scaledBox = new THREE.Box3().setFromObject(clone);
     clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
     clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
@@ -1642,6 +1661,7 @@ function replaceBalustersInScene() {
 
     const wrapper = new THREE.Group();
     wrapper.add(clone);
+    wrapper.userData.groupKey = groupKey; // Метка, чтобы потом найти
 
     wrapper.position.x = oldCenter.x;
     wrapper.position.z = oldCenter.z;
@@ -1650,7 +1670,7 @@ function replaceBalustersInScene() {
     const finalBox = new THREE.Box3().setFromObject(wrapper);
     wrapper.position.y += (oldBox.min.y - finalBox.min.y);
 
-    // Красим и настраиваем тени
+    // Красим
     clone.traverse((o) => {
       if (o.isMesh) {
         o.material = sharedMaterial;
@@ -1660,7 +1680,6 @@ function replaceBalustersInScene() {
     });
 
     replacedBalustersGroup.add(wrapper);
-    wrapper.userData.groupKey = groupKey;
   });
 }
 
