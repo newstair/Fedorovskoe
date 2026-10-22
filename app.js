@@ -1569,53 +1569,55 @@ function replaceBalustersInScene() {
 
     oldMesh.updateMatrixWorld(true);
     
-    // Габариты старой балясины
+    // Габариты старой балясины (эталон)
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
     const oldHeight = oldBox.max.y - oldBox.min.y;
 
     // ФИЛЬТР: Пропускаем заглушки (высота меньше 10 см)
     if (oldHeight < 0.1) return;
 
-    // --- ХИТРОСТЬ: Оборачиваем модель в невидимую группу, чтобы отцентровать её ---
-    const wrapper = new THREE.Group();
+    // Клонируем новую
     const clone = template.clone(true);
     
-    // Вычисляем габариты клона
-    const cloneBox = new THREE.Box3().setFromObject(clone);
-    const cloneHeight = cloneBox.max.y - cloneBox.min.y;
-    const cloneCenter = cloneBox.getCenter(new THREE.Vector3());
+    // --- ГЛАВНЫЙ ФИКС: Ставим модель ВЕРТИКАЛЬНО (так как в GLB она лежит) ---
+    clone.rotation.x = -Math.PI / 2; 
+    clone.updateMatrixWorld(true);
 
-    // 1. Сдвигаем геометрию клона в центр (в 0,0,0)
-    clone.position.sub(cloneCenter);
+    // Центрируем модель (чтобы она вращалась вокруг своей оси)
+    const cloneBox = new THREE.Box3().setFromObject(clone);
+    const cloneCenter = cloneBox.getCenter(new THREE.Vector3());
+    const cloneHeight = cloneBox.max.y - cloneBox.min.y;
     
-    // 2. Масштабируем клон
+    clone.position.sub(cloneCenter);
+
+    // Создаем обертку для масштабирования и позиционирования
+    const wrapper = new THREE.Group();
+    wrapper.add(clone);
+
+    // Масштабируем обертку (высота новой должна совпасть со старой)
     if (cloneHeight > 0.001) {
       const scale = oldHeight / cloneHeight;
       wrapper.scale.set(scale, scale, scale);
     }
 
-    // 3. Копируем поворот старой балясины на обертку
-    const oldQuat = new THREE.Quaternion();
-    oldMesh.getWorldQuaternion(oldQuat);
-    wrapper.quaternion.copy(oldQuat);
-
-    // 4. Ставим обертку на место старой балясины
+    // Переносим поворот и позицию старой балясины на обертку
     const oldPos = new THREE.Vector3();
     oldMesh.getWorldPosition(oldPos);
+    const oldQuat = new THREE.Quaternion();
+    oldMesh.getWorldQuaternion(oldQuat);
+
     wrapper.position.copy(oldPos);
+    wrapper.quaternion.copy(oldQuat);
 
-    // Добавляем клон в обертку
-    wrapper.add(clone);
-
-    // 5. Подгоняем по высоте (чтобы низ точно совпал)
+    // Подгоняем по высоте (чтобы низ новой точно совпал с низом старой)
     wrapper.updateMatrixWorld(true);
     const finalBox = new THREE.Box3().setFromObject(wrapper);
     wrapper.position.y += (oldBox.min.y - finalBox.min.y);
 
-    // 6. Красим в ЯРКО-РОЗОВЫЙ цвет, чтобы точно увидеть (потом заменим на текстуру)
+    // Красим в ЯРКО-РОЗОВЫЙ цвет для проверки (потом заменим)
     clone.traverse((o) => {
       if (o.isMesh) {
-        o.material = new THREE.MeshBasicMaterial({ color: 0xff00ff }); // Розовый базовый материал
+        o.material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
         o.castShadow = true; 
         o.receiveShadow = true;
       }
