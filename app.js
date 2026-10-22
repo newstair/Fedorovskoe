@@ -1530,13 +1530,23 @@ const replacedBalustersGroup = new THREE.Group();
 scene.add(replacedBalustersGroup);
 
 function replaceBalustersInScene() {
-  // 1. Очищаем предыдущие замены
-  while (replacedBalustersGroup.children.length) {
-    const c = replacedBalustersGroup.children.pop();
-    c.traverse((o) => {
+  // 1. ГАРАНТИРОВАННАЯ ОЧИСТКА ПРЕДЫДУЩИХ ЗАМЕН
+  // Отсоединяем всех детей и очищаем память
+  while (replacedBalustersGroup.children.length > 0) {
+    const child = replacedBalustersGroup.children[0];
+    replacedBalustersGroup.remove(child);
+    
+    // Рекурсивно очищаем геометрию и материалы
+    child.traverse((o) => {
       if (o.isMesh) {
         if (o.geometry) o.geometry.dispose();
-        if (o.material) o.material.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) {
+            o.material.forEach(m => m.dispose());
+          } else {
+            o.material.dispose();
+          }
+        }
       }
     });
   }
@@ -1554,12 +1564,26 @@ function replaceBalustersInScene() {
           if (k.includes('baluster') && elementGroups[k].includes(m)) { groupKey = k; break; }
         }
         m.visible = elementVisible[groupKey] !== false;
+        
+        // Возвращаем видимость родителям
+        let p = m.parent;
+        while (p && p !== scene) {
+            p.visible = true;
+            p = p.parent;
+        }
     });
     return;
   }
 
-  // 3. Скрываем старые балясины (всегда, если выбрана модель)
-  allOriginalBalusters.forEach(m => m.visible = false);
+  // 3. ЖЕСТКО СКРЫВАЕМ СТАРЫЕ БАЛЯСИНЫ (и их родителей)
+  allOriginalBalusters.forEach(m => {
+    m.visible = false;
+    let p = m.parent;
+    while (p && p !== scene) {
+        p.visible = false;
+        p = p.parent;
+    }
+  });
 
   // 4. Получаем шаблон новой балясины
   const template = balusterModels[selectedBaluster];
@@ -1575,10 +1599,12 @@ function replaceBalustersInScene() {
   // Берем самую большую сторону (это и есть высота балясины)
   const trueTemplateHeight = Math.max(rawSize.x, rawSize.y, rawSize.z);
   
-  // Проверяем, лежит ли она (длинная сторона не по Y)
-  const isLayingDown = rawSize.z > rawSize.y && rawSize.z > rawSize.x;
+  // Определяем, по какой оси лежит длинная сторона шаблона
+  let axisToRotate = null;
+  if (rawSize.z === trueTemplateHeight) axisToRotate = 'x';
+  else if (rawSize.x === trueTemplateHeight) axisToRotate = 'z';
 
-  // Общий материал для всех новых балясин (экономия памяти)
+  // Общий материал для всех новых балясин (чтобы не плодить тысячи)
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
 
   // 5. Клонируем новую модель на место каждой старой
@@ -1603,44 +1629,32 @@ function replaceBalustersInScene() {
 
     const clone = template.clone(true);
     
-    // --- ИСПРАВЛЕНИЕ 1: МАСШТАБ ТОЛЬКО ПО ВЫСОТЕ (ЛОКАЛЬНОЙ ОСИ Y) ---
-    // Сначала ставим вертикально, чтобы понять её реальную высоту в ориентации "стоя"
-    if (isLayingDown) {
-        // Если лежит по Z, поворачиваем на -90 по X
-        clone.rotation.x = -Math.PI / 2;
-    } else if (rawSize.x > rawSize.y && rawSize.x > rawSize.z) {
-        // Если лежит по X, поворачиваем на 90 по Z
-        clone.rotation.z = Math.PI / 2;
-    }
+    // --- ПОВОРАЧИВАЕМ ШАБЛОН ВЕРТИКАЛЬНО ---
+    if (axisToRotate === 'x') clone.rotation.x = -Math.PI / 2;
+    else if (axisToRotate === 'z') clone.rotation.z = Math.PI / 2;
     
     clone.updateMatrixWorld(true);
-    
-    // Теперь замеряем габариты ПОСЛЕ разворота
+
+    // --- МАСШТАБИРУЕМ ТОЛЬКО ПО ВЫСОТЕ (ЛОКАЛЬНОЙ ОСИ Y) ---
     const orientedBox = new THREE.Box3().setFromObject(clone);
     const orientedSize = orientedBox.getSize(new THREE.Vector3());
     
-    // Масштабируем ТОЛЬКО по оси Y (высота). По X и Z оставляем 1.
     if (orientedSize.y > 0.001) {
       const scaleY = oldSize.y / orientedSize.y;
+      // Меняем только Y, чтобы не раздувало в диаметре
       clone.scale.set(1, scaleY, 1);
     }
     clone.updateMatrixWorld(true);
 
-    // --- ИСПРАВЛЕНИЕ 2: ЦЕНТРИРУЕМ ТОЛЬКО ПО НИЗУ (чтобы не улетела вверх) ---
+    // --- ЦЕНТРИРУЕМ ПО X И Z, НИЗ НА 0 ---
     const scaledBox = new THREE.Box3().setFromObject(clone);
-    // Центрируем по X и Z, а по Y ставим низ на 0
     clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
     clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
     clone.position.y -= scaledBox.min.y;
 
-    // 6. Создаем обертку для наклона
+    // 6. Создаем обертку для позиционирования
     const wrapper = new THREE.Group();
     wrapper.add(clone);
-
-    // Переносим поворот старой детали на обертку
-    const oldQuat = new THREE.Quaternion();
-    oldMesh.getWorldQuaternion(oldQuat);
-    wrapper.quaternion.copy(oldQuat);
 
     // Ставим в центр старой по X и Z
     wrapper.position.x = oldCenter.x;
@@ -1651,7 +1665,7 @@ function replaceBalustersInScene() {
     const finalBox = new THREE.Box3().setFromObject(wrapper);
     wrapper.position.y += (oldBox.min.y - finalBox.min.y);
 
-    // 8. Применяем общий материал
+    // 8. Применяем общий материал и настраиваем тени
     clone.traverse((o) => {
       if (o.isMesh) {
         o.material = sharedMaterial;
