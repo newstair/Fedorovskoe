@@ -1530,84 +1530,75 @@ const replacedBalustersGroup = new THREE.Group();
 scene.add(replacedBalustersGroup);
 
 function replaceBalustersInScene() {
-  // 1. ГАРАНТИРОВАННАЯ ОЧИСТКА ПРЕДЫДУЩИХ ЗАМЕН
-  // Отсоединяем всех детей и очищаем память
+  // 1. ЖЕСТКАЯ ОЧИСТКА ВСЕХ СТАРЫХ ЗАМЕН И ИХ МАТЕРИАЛОВ
   while (replacedBalustersGroup.children.length > 0) {
     const child = replacedBalustersGroup.children[0];
     replacedBalustersGroup.remove(child);
-    
-    // Рекурсивно очищаем геометрию и материалы
     child.traverse((o) => {
       if (o.isMesh) {
         if (o.geometry) o.geometry.dispose();
         if (o.material) {
-          if (Array.isArray(o.material)) {
-            o.material.forEach(m => m.dispose());
-          } else {
-            o.material.dispose();
-          }
+          if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+          else o.material.dispose();
         }
       }
     });
   }
+  
+  // ВАЖНО: Очищаем массив детей принудительно (на случай глюков Three.js)
+  replacedBalustersGroup.children = []; 
 
   const allOriginalBalusters = [
     ...(elementGroups['s1_baluster'] || []), ...(elementGroups['s2_baluster'] || []),
     ...(elementGroups['r2_baluster'] || []), ...(elementGroups['r3_baluster'] || [])
   ];
 
-  // 2. Если выбрано "Как в проекте" — показываем старые, скрываем группу новых
+  // 2. ЕСЛИ ВЫБРАНО "КАК В ПРОЕКТЕ" — ВОЗВРАЩАЕМ ВСЁ НА МЕСТО
   if (selectedBaluster === 'original') {
+    // Показываем всю лестницу (лечим то, что мы случайно скрыли)
+    scene.traverse((obj) => {
+        if (obj.isMesh || obj.isGroup) obj.visible = true;
+    });
+    
+    // Возвращаем старые балясины
     allOriginalBalusters.forEach(m => {
         let groupKey = 's1_baluster';
         for (const k in elementGroups) {
           if (k.includes('baluster') && elementGroups[k].includes(m)) { groupKey = k; break; }
         }
         m.visible = elementVisible[groupKey] !== false;
-        
-        // Возвращаем видимость родителям
-        let p = m.parent;
-        while (p && p !== scene) {
-            p.visible = true;
-            p = p.parent;
-        }
     });
+    
+    applyElementVisibility(); // На всякий случай синхронизируем кнопки
     return;
   }
 
-  // 3. ЖЕСТКО СКРЫВАЕМ СТАРЫЕ БАЛЯСИНЫ (и их родителей)
+  // 3. СКРЫВАЕМ ТОЛЬКО САМИ СТАРЫЕ БАЛЯСИНЫ (без родителей!)
   allOriginalBalusters.forEach(m => {
     m.visible = false;
-    let p = m.parent;
-    while (p && p !== scene) {
-        p.visible = false;
-        p = p.parent;
-    }
   });
 
-  // 4. Получаем шаблон новой балясины
+  // 4. Получаем шаблон
   const template = balusterModels[selectedBaluster];
   if (!template) {
     showToast('Модель балясины еще не загрузилась. Подождите.', true);
     return;
   }
 
-  // Замеряем оригинальную модель ДО масштабирования
+  // Замеряем шаблон ДО любых изменений
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   
-  // Берем самую большую сторону (это и есть высота балясины)
-  const trueTemplateHeight = Math.max(rawSize.x, rawSize.y, rawSize.z);
-  
-  // Определяем, по какой оси лежит длинная сторона шаблона
+  // Определяем, по какой оси лежит длинная сторона
+  const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
   let axisToRotate = null;
-  if (rawSize.z === trueTemplateHeight) axisToRotate = 'x';
-  else if (rawSize.x === trueTemplateHeight) axisToRotate = 'z';
+  if (Math.abs(rawSize.x - maxDim) < 0.001) axisToRotate = 'x';
+  else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
-  // Общий материал для всех новых балясин (чтобы не плодить тысячи)
+  // Один общий материал для всех
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
 
-  // 5. Клонируем новую модель на место каждой старой
+  // 5. Клонируем
   allOriginalBalusters.forEach((oldMesh) => {
     let groupKey = 's1_baluster';
     for (const k in elementGroups) {
@@ -1619,53 +1610,47 @@ function replaceBalustersInScene() {
 
     oldMesh.updateMatrixWorld(true);
     
-    // Габариты и центр старой балясины
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
     const oldSize = oldBox.getSize(new THREE.Vector3());
     const oldCenter = oldBox.getCenter(new THREE.Vector3());
 
-    // ФИЛЬТР: Пропускаем заглушки (высота меньше 10 см)
-    if (oldSize.y < 0.1) return;
+    if (oldSize.y < 0.1) return; // Фильтр заглушек
 
     const clone = template.clone(true);
     
-    // --- ПОВОРАЧИВАЕМ ШАБЛОН ВЕРТИКАЛЬНО ---
+    // Поворачиваем вертикально
     if (axisToRotate === 'x') clone.rotation.x = -Math.PI / 2;
     else if (axisToRotate === 'z') clone.rotation.z = Math.PI / 2;
     
     clone.updateMatrixWorld(true);
 
-    // --- МАСШТАБИРУЕМ ТОЛЬКО ПО ВЫСОТЕ (ЛОКАЛЬНОЙ ОСИ Y) ---
+    // Масштабируем ТОЛЬКО по высоте
     const orientedBox = new THREE.Box3().setFromObject(clone);
     const orientedSize = orientedBox.getSize(new THREE.Vector3());
     
     if (orientedSize.y > 0.001) {
       const scaleY = oldSize.y / orientedSize.y;
-      // Меняем только Y, чтобы не раздувало в диаметре
       clone.scale.set(1, scaleY, 1);
     }
     clone.updateMatrixWorld(true);
 
-    // --- ЦЕНТРИРУЕМ ПО X И Z, НИЗ НА 0 ---
+    // Центрируем по X/Z и ставим низ на 0
     const scaledBox = new THREE.Box3().setFromObject(clone);
     clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
     clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
     clone.position.y -= scaledBox.min.y;
 
-    // 6. Создаем обертку для позиционирования
     const wrapper = new THREE.Group();
     wrapper.add(clone);
 
-    // Ставим в центр старой по X и Z
     wrapper.position.x = oldCenter.x;
     wrapper.position.z = oldCenter.z;
 
-    // 7. ВЫРАВНИВАЕМ ПО ПОЛУ
     wrapper.updateMatrixWorld(true);
     const finalBox = new THREE.Box3().setFromObject(wrapper);
     wrapper.position.y += (oldBox.min.y - finalBox.min.y);
 
-    // 8. Применяем общий материал и настраиваем тени
+    // Красим и настраиваем тени
     clone.traverse((o) => {
       if (o.isMesh) {
         o.material = sharedMaterial;
