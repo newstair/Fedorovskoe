@@ -1541,7 +1541,7 @@ function replaceBalustersInScene() {
     ...(elementGroups['r2_baluster'] || []), ...(elementGroups['r3_baluster'] || [])
   ];
 
-  // 2. Если выбрано "Как в проекте" — показываем старые
+  // 2. Если выбрано "Как в проекте" — показываем старые, скрываем новые
   if (selectedBaluster === 'original') {
     allOriginalBalusters.forEach(m => m.visible = elementVisible[m.userData.groupKey] !== false);
     return;
@@ -1559,6 +1559,7 @@ function replaceBalustersInScene() {
 
   // 5. Клонируем новую модель на место каждой старой
   allOriginalBalusters.forEach((oldMesh) => {
+    // Определяем, к какой группе относится старая балясина
     let groupKey = 's1_baluster';
     for (const k in elementGroups) {
       if (k.includes('baluster') && elementGroups[k].includes(oldMesh)) {
@@ -1569,7 +1570,7 @@ function replaceBalustersInScene() {
 
     oldMesh.updateMatrixWorld(true);
     
-    // Габариты и ЦЕНТР старой балясины
+    // Габариты и центр старой балясины
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
     const oldSize = oldBox.getSize(new THREE.Vector3());
     const oldCenter = oldBox.getCenter(new THREE.Vector3());
@@ -1577,39 +1578,35 @@ function replaceBalustersInScene() {
     // ФИЛЬТР: Пропускаем заглушки (высота меньше 10 см)
     if (oldSize.y < 0.1) return;
 
-    // Клонируем новую
+    // Клонируем новую модель
     const clone = template.clone(true);
-    
-    // --- ПОВОРАЧИВАЕМ МОДЕЛЬ (ставим её "на ноги") ---
-    // Если после этого она окажется вверх ногами, поменяй знак на минус: -Math.PI / 2
-    clone.rotation.x = Math.PI / 2; 
-    
-    // Обновляем матрицы, чтобы Three.js пересчитал новые габариты
     clone.updateMatrixWorld(true);
+
+    // Масштабируем новую модель под высоту старой
     const cloneBox = new THREE.Box3().setFromObject(clone);
     const cloneSize = cloneBox.getSize(new THREE.Vector3());
-    const cloneCenter = cloneBox.getCenter(new THREE.Vector3());
-
-    // 1. Центрируем клон (сдвигаем его геометрию в 0,0,0)
-    clone.position.sub(cloneCenter);
-
-    // 2. Масштабируем (высота новой = высота старой)
     if (cloneSize.y > 0.001 && oldSize.y > 0.001) {
       const scale = oldSize.y / cloneSize.y;
       clone.scale.set(scale, scale, scale);
     }
 
-    // 3. Копируем поворот и позицию старой балясины
+    // Ставим новую балясину ровно в центр старой по X и Z
+    clone.position.x = oldCenter.x;
+    clone.position.z = oldCenter.z;
+
+    // Копируем поворот старой балясины (чтобы новая наклонилась вместе с лестницей)
     const oldQuat = new THREE.Quaternion();
     oldMesh.getWorldQuaternion(oldQuat);
-    
-    // Применяем поворот старой балясины к нашей уже повернутой модели
     clone.quaternion.copy(oldQuat);
-    
-    // Ставим РОВНО ПО ЦЕНТРУ старой балясины (как ты и предложил)
-    clone.position.copy(oldCenter);
 
-    // 4. Красим в ЯРКО-РОЗОВЫЙ цвет для проверки
+    // Обновляем матрицы, чтобы понять, где теперь находится низ новой балясины
+    clone.updateMatrixWorld(true);
+    const newBoxAfterRotate = new THREE.Box3().setFromObject(clone);
+
+    // Привязываем низ новой балясины к низу старой
+    clone.position.y = oldBox.min.y - newBoxAfterRotate.min.y + oldCenter.y;
+
+    // Красим в ЯРКО-РОЗОВЫЙ цвет для теста
     clone.traverse((o) => {
       if (o.isMesh) {
         o.material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
