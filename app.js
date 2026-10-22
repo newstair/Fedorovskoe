@@ -1546,22 +1546,32 @@ function replaceBalustersInScene() {
   }
   replacedBalustersGroup.children = []; 
 
-  // 2. Если выбрано "Как в проекте" — просто перезагружаем модель
-  if (selectedBaluster === 'original') {
-    // Возвращаем всё как было
-    scene.traverse((obj) => {
-        if (obj.isMesh || obj.isGroup) obj.visible = true;
-    });
-    // Перезагружаем оригинальную модель, чтобы вернуть удаленные балясины
-    if (MODEL_FILE) loadCollada(MODEL_FILE, MODEL_FILE);
-    return;
-  }
-
-  // 3. Собираем все оригинальные балясины
   const allOriginalBalusters = [
     ...(elementGroups['s1_baluster'] || []), ...(elementGroups['s2_baluster'] || []),
     ...(elementGroups['r2_baluster'] || []), ...(elementGroups['r3_baluster'] || [])
   ];
+
+  // 2. Если выбрано "Как в проекте"
+  if (selectedBaluster === 'original') {
+    // Включаем видимость всей сцены на случай, если что-то было скрыто
+    scene.traverse((obj) => {
+        if (obj.isMesh || obj.isGroup) obj.visible = true;
+    });
+    // Возвращаем старые балясины
+    allOriginalBalusters.forEach(m => {
+        let groupKey = 's1_baluster';
+        for (const k in elementGroups) {
+          if (k.includes('baluster') && elementGroups[k].includes(m)) { groupKey = k; break; }
+        }
+        m.visible = elementVisible[groupKey] !== false;
+    });
+    return;
+  }
+
+  // 3. ЖЕСТКО СКРЫВАЕМ СТАРЫЕ БАЛЯСИНЫ
+  allOriginalBalusters.forEach(m => {
+    m.visible = false;
+  });
 
   // 4. Получаем шаблон
   const template = balusterModels[selectedBaluster];
@@ -1570,6 +1580,7 @@ function replaceBalustersInScene() {
     return;
   }
 
+  // Замеряем шаблон
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
@@ -1579,7 +1590,7 @@ function replaceBalustersInScene() {
 
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
 
-  // 5. Клонируем и ставим новые, а старые УДАЛЯЕМ из сцены
+  // 5. Клонируем
   allOriginalBalusters.forEach((oldMesh) => {
     let groupKey = 's1_baluster';
     for (const k in elementGroups) {
@@ -1638,12 +1649,6 @@ function replaceBalustersInScene() {
     });
 
     replacedBalustersGroup.add(wrapper);
-
-    // --- ВОТ ГЛАВНЫЙ ФОКУС ---
-    // Физически удаляем старую балясину из её родителя
-    if (oldMesh.parent) {
-        oldMesh.parent.remove(oldMesh);
-    }
   });
 }
 
