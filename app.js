@@ -1529,12 +1529,31 @@ function buildBalusterPanel() {
 const replacedBalustersGroup = new THREE.Group();
 scene.add(replacedBalustersGroup);
 
+let isReplacing = false; // Флаг защиты от двойного вызова
+
 function replaceBalustersInScene() {
-  // 1. Очищаем предыдущие замены
-  while (replacedBalustersGroup.children.length > 0) {
-    const child = replacedBalustersGroup.children[0];
-    replacedBalustersGroup.remove(child);
-    child.traverse((o) => {
+  if (isReplacing) return;
+  isReplacing = true;
+
+  // 1. ТОТАЛЬНАЯ ЗАЧИСТКА СЦЕНЫ ОТ РОЗОВЫХ БАЛЯСИН
+  const toRemove = [];
+  scene.traverse((obj) => {
+    // Ищем либо группу, которую мы создавали, либо меш с розовым материалом
+    if (obj.isGroup && obj.userData.groupKey) {
+      toRemove.push(obj);
+    } else if (obj.isMesh && obj.material) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      if (mats.some(m => m && m.color && m.color.getHex() === 0xff00ff)) {
+        toRemove.push(obj);
+      }
+    }
+  });
+
+  // Физически удаляем найденное
+  toRemove.forEach((obj) => {
+    if (obj.parent) obj.parent.remove(obj);
+    // Очищаем память
+    obj.traverse((o) => {
       if (o.isMesh) {
         if (o.geometry) o.geometry.dispose();
         if (o.material) {
@@ -1543,6 +1562,12 @@ function replaceBalustersInScene() {
         }
       }
     });
+  });
+
+  // На всякий случай очищаем группу
+  while (replacedBalustersGroup.children.length > 0) {
+    const child = replacedBalustersGroup.children[0];
+    replacedBalustersGroup.remove(child);
   }
   replacedBalustersGroup.children = []; 
 
@@ -1553,11 +1578,9 @@ function replaceBalustersInScene() {
 
   // 2. Если выбрано "Как в проекте"
   if (selectedBaluster === 'original') {
-    // Включаем видимость всей сцены на случай, если что-то было скрыто
     scene.traverse((obj) => {
         if (obj.isMesh || obj.isGroup) obj.visible = true;
     });
-    // Возвращаем старые балясины
     allOriginalBalusters.forEach(m => {
         let groupKey = 's1_baluster';
         for (const k in elementGroups) {
@@ -1565,18 +1588,18 @@ function replaceBalustersInScene() {
         }
         m.visible = elementVisible[groupKey] !== false;
     });
+    isReplacing = false;
     return;
   }
 
-  // 3. ЖЕСТКО СКРЫВАЕМ СТАРЫЕ БАЛЯСИНЫ
-  allOriginalBalusters.forEach(m => {
-    m.visible = false;
-  });
+  // 3. Скрываем старые балясины
+  allOriginalBalusters.forEach(m => m.visible = false);
 
   // 4. Получаем шаблон
   const template = balusterModels[selectedBaluster];
   if (!template) {
     showToast('Модель балясины еще не загрузилась. Подождите.', true);
+    isReplacing = false;
     return;
   }
 
@@ -1589,6 +1612,9 @@ function replaceBalustersInScene() {
   else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+
+  // Хранилище координат, чтобы не создавать дубли в одной точке
+  const usedPositions = new Set();
 
   // 5. Клонируем
   allOriginalBalusters.forEach((oldMesh) => {
@@ -1607,6 +1633,14 @@ function replaceBalustersInScene() {
     const oldCenter = oldBox.getCenter(new THREE.Vector3());
 
     if (oldSize.y < 0.1) return; 
+
+    // --- ЗАЩИТА ОТ ДУБЛЕЙ ПО КООРДИНАТАМ ---
+    // Округляем координаты до 1 см, чтобы понять, не создавали ли мы тут уже клон
+    const posKey = oldCenter.x.toFixed(2) + '_' + oldCenter.z.toFixed(2);
+    if (usedPositions.has(posKey)) {
+      return; // Если в этой точке уже есть клон — пропускаем
+    }
+    usedPositions.add(posKey);
 
     const clone = template.clone(true);
     
@@ -1650,6 +1684,8 @@ function replaceBalustersInScene() {
 
     replacedBalustersGroup.add(wrapper);
   });
+
+  isReplacing = false; // Снимаем защиту
 }
 
 
