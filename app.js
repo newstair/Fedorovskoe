@@ -1557,6 +1557,10 @@ function replaceBalustersInScene() {
     return;
   }
 
+  // ВАЖНО: Вычисляем габариты шаблона ОДИН РАЗ, чтобы не тормозить
+  const templateBox = new THREE.Box3().setFromObject(template);
+  const templateHeight = templateBox.max.y - templateBox.min.y;
+
   // 5. Клонируем новую модель на место каждой старой
   allOriginalBalusters.forEach((oldMesh) => {
     let groupKey = 's1_baluster';
@@ -1571,42 +1575,40 @@ function replaceBalustersInScene() {
     
     // Габариты старой балясины
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
-    const oldSize = oldBox.getSize(new THREE.Vector3());
-    const oldCenter = oldBox.getCenter(new THREE.Vector3());
+    const oldHeight = oldBox.max.y - oldBox.min.y;
 
-    // ФИЛЬТР: Если высота меньше 10 см — это заглушка, пропускаем её
-    if (oldSize.y < 0.1) return;
+    // ФИЛЬТР: Пропускаем заглушки (высота меньше 10 см)
+    if (oldHeight < 0.1) return;
 
     // Клонируем новую
     const clone = template.clone(true);
-    clone.updateMatrixWorld(true);
-
-    // Масштабируем новую, чтобы её высота совпала со старой
-    const tempBox = new THREE.Box3().setFromObject(clone);
-    const tempSize = tempBox.getSize(new THREE.Vector3());
-    if (tempSize.y > 0.001 && oldSize.y > 0.001) {
-      const scale = oldSize.y / tempSize.y;
+    
+    // 1. Правильный масштаб (сравниваем высоту старой и новой)
+    if (templateHeight > 0.001) {
+      const scale = oldHeight / templateHeight;
       clone.scale.set(scale, scale, scale);
     }
 
-    // Копируем поворот старой балясины (наклон)
-    clone.quaternion.copy(oldMesh.getWorldQuaternion(new THREE.Quaternion()));
+    // 2. Позиция и поворот
+    // Берем мировую позицию и поворот старой балясины
+    const oldPos = new THREE.Vector3();
+    oldMesh.getWorldPosition(oldPos);
+    const oldQuat = new THREE.Quaternion();
+    oldMesh.getWorldQuaternion(oldQuat);
+
+    clone.position.copy(oldPos);
+    clone.quaternion.copy(oldQuat);
+
+    // 3. Выравниваем по низу (чтобы не висели в воздухе)
     clone.updateMatrixWorld(true);
+    const newBox = new THREE.Box3().setFromObject(clone);
+    clone.position.y += (oldBox.min.y - newBox.min.y);
 
-    // Позиционируем по центру X и Z
-    clone.position.x = oldCenter.x;
-    clone.position.z = oldCenter.z;
-    
-    // Вычисляем точную разницу высот, чтобы низ новой совпал с низом старой
-    const newBoxAfterRotate = new THREE.Box3().setFromObject(clone);
-    clone.position.y += (oldBox.min.y - newBoxAfterRotate.min.y);
-
-    // Накладываем текстуру дерева и убираем черный цвет
+    // 4. Накладываем текстуру (ставим ярко-оранжевый цвет для теста)
     clone.traverse((o) => {
       if (o.isMesh) {
         o.material = new THREE.MeshStandardMaterial({ 
-          map: getTexture('con_pine.bmp'), 
-          color: 0xffffff, // Белый цвет, чтобы текстура была видна
+          color: 0xffaa00, // Временно оранжевый, чтобы точно увидеть
           roughness: 0.8
         });
         o.castShadow = true; 
@@ -1614,12 +1616,10 @@ function replaceBalustersInScene() {
       }
     });
 
-    // 8. Добавляем в сцену
     replacedBalustersGroup.add(clone);
     clone.userData.groupKey = groupKey;
-
-  }); // Конец цикла forEach
-} // Конец функции replaceBalustersInScene
+  });
+}
 
 
 /* ═══════════════════════════════════════════════════════════════
