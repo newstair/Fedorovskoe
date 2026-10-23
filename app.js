@@ -1531,14 +1531,15 @@ scene.add(replacedBalustersGroup);
 
 let isReplacing = false; // Флаг защиты от двойного вызова
 
+let isReplacing = false; 
+
 function replaceBalustersInScene() {
   if (isReplacing) return;
   isReplacing = true;
 
-  // 1. ТОТАЛЬНАЯ ЗАЧИСТКА СЦЕНЫ ОТ РОЗОВЫХ БАЛЯСИН
+  // 1. ТОТАЛЬНАЯ ЗАЧИСТКА СЦЕНЫ ОТ СТАРЫХ РОЗОВЫХ БАЛЯСИН
   const toRemove = [];
   scene.traverse((obj) => {
-    // Ищем либо группу, которую мы создавали, либо меш с розовым материалом
     if (obj.isGroup && obj.userData.groupKey) {
       toRemove.push(obj);
     } else if (obj.isMesh && obj.material) {
@@ -1549,10 +1550,8 @@ function replaceBalustersInScene() {
     }
   });
 
-  // Физически удаляем найденное
   toRemove.forEach((obj) => {
     if (obj.parent) obj.parent.remove(obj);
-    // Очищаем память
     obj.traverse((o) => {
       if (o.isMesh) {
         if (o.geometry) o.geometry.dispose();
@@ -1564,7 +1563,6 @@ function replaceBalustersInScene() {
     });
   });
 
-  // На всякий случай очищаем группу
   while (replacedBalustersGroup.children.length > 0) {
     const child = replacedBalustersGroup.children[0];
     replacedBalustersGroup.remove(child);
@@ -1612,9 +1610,9 @@ function replaceBalustersInScene() {
   else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
-
-  // Хранилище координат, чтобы не создавать дубли в одной точке
-  const usedPositions = new Set();
+  
+  // Защита от дублей по UUID (вместо координат)
+  const processedMeshes = new Set();
 
   // 5. Клонируем
   allOriginalBalusters.forEach((oldMesh) => {
@@ -1626,6 +1624,10 @@ function replaceBalustersInScene() {
     }
     if (elementVisible[groupKey] === false) return;
 
+    // Пропускаем, если уже обработали этот меш
+    if (processedMeshes.has(oldMesh.uuid)) return;
+    processedMeshes.add(oldMesh.uuid);
+
     oldMesh.updateMatrixWorld(true);
     
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
@@ -1634,30 +1636,28 @@ function replaceBalustersInScene() {
 
     if (oldSize.y < 0.1) return; 
 
-    // --- ЗАЩИТА ОТ ДУБЛЕЙ ПО КООРДИНАТАМ ---
-    // Округляем координаты до 1 см, чтобы понять, не создавали ли мы тут уже клон
-    const posKey = oldCenter.x.toFixed(2) + '_' + oldCenter.z.toFixed(2);
-    if (usedPositions.has(posKey)) {
-      return; // Если в этой точке уже есть клон — пропускаем
-    }
-    usedPositions.add(posKey);
+    // Берем реальную длину (максимальный габарит), чтобы балясина достала до поручня
+    const targetLength = Math.max(oldSize.x, oldSize.y, oldSize.z);
 
     const clone = template.clone(true);
     
+    // Поворачиваем вертикально
     if (axisToRotate === 'x') clone.rotation.x = -Math.PI / 2;
     else if (axisToRotate === 'z') clone.rotation.z = Math.PI / 2;
     
     clone.updateMatrixWorld(true);
 
+    // Масштабируем ТОЛЬКО по длине (Y), сохраняя диаметр
     const orientedBox = new THREE.Box3().setFromObject(clone);
     const orientedSize = orientedBox.getSize(new THREE.Vector3());
     
     if (orientedSize.y > 0.001) {
-      const scaleY = oldSize.y / orientedSize.y;
+      const scaleY = targetLength / orientedSize.y;
       clone.scale.set(1, scaleY, 1); 
     }
     clone.updateMatrixWorld(true);
 
+    // Центрируем по X/Z и ставим низ на 0
     const scaledBox = new THREE.Box3().setFromObject(clone);
     clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
     clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
@@ -1667,9 +1667,16 @@ function replaceBalustersInScene() {
     wrapper.add(clone);
     wrapper.userData.groupKey = groupKey; 
 
+    // --- ВОЗВРАЩАЕМ НАКЛОН ПЕРИЛ ---
+    const oldQuat = new THREE.Quaternion();
+    oldMesh.getWorldQuaternion(oldQuat);
+    wrapper.quaternion.copy(oldQuat);
+
+    // Ставим в центр старой по X и Z
     wrapper.position.x = oldCenter.x;
     wrapper.position.z = oldCenter.z;
 
+    // Выравниваем по полу с учетом наклона
     wrapper.updateMatrixWorld(true);
     const finalBox = new THREE.Box3().setFromObject(wrapper);
     wrapper.position.y += (oldBox.min.y - finalBox.min.y);
@@ -1685,7 +1692,7 @@ function replaceBalustersInScene() {
     replacedBalustersGroup.add(wrapper);
   });
 
-  isReplacing = false; // Снимаем защиту
+  isReplacing = false;
 }
 
 
