@@ -1531,8 +1531,6 @@ scene.add(replacedBalustersGroup);
 
 let isReplacing = false; // Флаг защиты от двойного вызова
 
-let isReplacing = false; 
-
 function replaceBalustersInScene() {
   if (isReplacing) return;
   isReplacing = true;
