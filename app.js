@@ -1538,7 +1538,8 @@ function replaceBalustersInScene() {
   // 1. ТОТАЛЬНАЯ ЗАЧИСТКА СЦЕНЫ
   const toRemove = [];
   scene.traverse((obj) => {
-    if (obj.isGroup && obj.userData.groupKey) {
+    // Ищем по имени, по метке группы или по розовому цвету
+    if (obj.name === "replaced_baluster" || (obj.isGroup && obj.userData.groupKey)) {
       toRemove.push(obj);
     } else if (obj.isMesh && obj.material) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -1599,13 +1600,13 @@ function replaceBalustersInScene() {
     return;
   }
 
-  // Замеряем шаблон
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
 
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
   const processedMeshes = new Set();
+  const usedPositions = new Set(); // Защита от клонов в одной точке
 
   // 5. Клонируем
   allOriginalBalusters.forEach((oldMesh) => {
@@ -1616,7 +1617,8 @@ function replaceBalustersInScene() {
       }
     }
     if (elementVisible[groupKey] === false) return;
-
+    
+    // Защита 1: проверяем UUID меша
     if (processedMeshes.has(oldMesh.uuid)) return;
     processedMeshes.add(oldMesh.uuid);
 
@@ -1624,23 +1626,27 @@ function replaceBalustersInScene() {
     
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
     const oldSize = oldBox.getSize(new THREE.Vector3());
+    const oldCenter = oldBox.getCenter(new THREE.Vector3());
 
     if (oldSize.y < 0.1) return; 
 
+    // Защита 2: проверяем точные координаты (X, Y, Z). Если тут уже был клон — пропускаем.
+    const posKey = oldCenter.x.toFixed(3) + '_' + oldCenter.y.toFixed(3) + '_' + oldCenter.z.toFixed(3);
+    if (usedPositions.has(posKey)) return;
+    usedPositions.add(posKey);
+
     const clone = template.clone(true);
     
-    // --- 1. ПРАВИЛЬНЫЙ ПОВОРОТ ВЕРТИКАЛЬНО ---
+    // --- 1. ПОВОРОТ ВЕРТИКАЛЬНО ---
     clone.rotation.set(0, 0, 0);
     if (rawSize.x === maxDim) {
-        // Если модель лежит вдоль X, поворачиваем на 90 град вокруг Z
         clone.rotation.z = Math.PI / 2;
     } else if (rawSize.z === maxDim) {
-        // Если модель лежит вдоль Z, поворачиваем на -90 град вокруг X
         clone.rotation.x = -Math.PI / 2;
     }
     clone.updateMatrixWorld(true);
 
-    // --- 2. МАСШТАБИРУЕМ ПО ВЫСОТЕ (Y) ---
+    // --- 2. МАСШТАБ ПО ВЫСОТЕ ---
     const orientedBox = new THREE.Box3().setFromObject(clone);
     const orientedSize = orientedBox.getSize(new THREE.Vector3());
     
@@ -1650,33 +1656,24 @@ function replaceBalustersInScene() {
     }
     clone.updateMatrixWorld(true);
 
-    // --- 3. ЦЕНТРИРУЕМ (X=0, Z=0, низ на Y=0) ---
+    // --- 3. ЦЕНТРИРУЕМ ---
     const scaledBox = new THREE.Box3().setFromObject(clone);
     clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
     clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
     clone.position.y -= scaledBox.min.y;
 
-    // --- 4. НАХОДИМ РЕАЛЬНЫЙ НИЗ СТАРОЙ БАЛЯСИНЫ ---
-    // Вычисляем локальный bounding box геометрии
-    if (!oldMesh.geometry.boundingBox) oldMesh.geometry.computeBoundingBox();
-    const oldGeoBox = oldMesh.geometry.boundingBox;
-    
-    // Берем центр нижней грани в локальных координатах
-    const localBottom = new THREE.Vector3(
-        (oldGeoBox.min.x + oldGeoBox.max.x) / 2,
-        oldGeoBox.min.y,
-        (oldGeoBox.min.z + oldGeoBox.max.z) / 2
-    );
-    // Переводим в мировые координаты (учитывая наклон лестницы)
-    const worldBottom = localBottom.applyMatrix4(oldMesh.matrixWorld);
-
-    // --- 5. СОБИРАЕМ ---
     const wrapper = new THREE.Group();
+    wrapper.name = "replaced_baluster"; // Даем имя для надежной очистки
     wrapper.add(clone);
     wrapper.userData.groupKey = groupKey; 
 
-    // Ставим обертку ровно в эту нижнюю точку
-    wrapper.position.copy(worldBottom);
+    // --- 4. ВЫРАВНИВАЕМ ПО ПОЛУ ---
+    wrapper.position.x = oldCenter.x;
+    wrapper.position.z = oldCenter.z;
+
+    wrapper.updateMatrixWorld(true);
+    const finalBox = new THREE.Box3().setFromObject(wrapper);
+    wrapper.position.y += (oldBox.min.y - finalBox.min.y);
 
     clone.traverse((o) => {
       if (o.isMesh) {
@@ -1691,7 +1688,6 @@ function replaceBalustersInScene() {
 
   isReplacing = false;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════
    ПОКРАСКА (панель цветов)
