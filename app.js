@@ -1531,7 +1531,7 @@ const shortBalustersGroup = new THREE.Group();
 const longBalustersGroup = new THREE.Group();
 shortBalustersGroup.name = "short_balusters_container";
 longBalustersGroup.name = "long_balusters_container";
-scene.add(shortBalustersGroup, longBalustersGroup);
+scene.add(longBalustersGroup); // Добавляем в сцену ТОЛЬКО длинный контейнер
 
 // Для совместимости с остальным кодом (кнопки видимости и т.д.)
 const replacedBalustersGroup = longBalustersGroup;
@@ -1672,10 +1672,18 @@ function replaceBalustersInScene() {
     longBalustersGroup.add(createClone(true));
   });
 
-  // 6. Управление видимостью (по умолчанию показываем длинные)
-  shortBalustersGroup.visible = false;
+    // 6. Управление видимостью
+  // Короткий контейнер не добавлен в сцену, поэтому мы его просто не видим.
+  // Если он вдруг был добавлен ранее, принудительно удаляем:
+  if (shortBalustersGroup.parent) {
+      scene.remove(shortBalustersGroup);
+  }
+  
+  // Длинный контейнер гарантированно в сцене и виден
+  if (!longBalustersGroup.parent) {
+      scene.add(longBalustersGroup);
+  }
   longBalustersGroup.visible = true;
-
   isReplacing = false;
 }
 
