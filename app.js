@@ -1542,23 +1542,37 @@ function replaceBalustersInScene() {
   if (isReplacing) return;
   isReplacing = true;
 
-  // 1. ОЧИСТКА ОБОИХ КОНТЕЙНЕРОВ
-  [shortBalustersGroup, longBalustersGroup].forEach(group => {
-    while (group.children.length > 0) {
-      const child = group.children[0];
-      group.remove(child);
-      child.traverse((o) => {
-        if (o.isMesh) {
-          if (o.geometry) o.geometry.dispose();
-          if (o.material) {
-            if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
-            else o.material.dispose();
-          }
-        }
-      });
+  // 1. Очистка всех предыдущих замен
+  const toRemove = [];
+  scene.traverse((obj) => {
+    if (obj.isGroup && obj.userData.groupKey) {
+      toRemove.push(obj);
+    } else if (obj.isMesh && obj.material) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      if (mats.some(m => m && m.color && m.color.getHex() === 0xff00ff)) {
+        toRemove.push(obj);
+      }
     }
-    group.children = [];
   });
+
+  toRemove.forEach((obj) => {
+    if (obj.parent) obj.parent.remove(obj);
+    obj.traverse((o) => {
+      if (o.isMesh) {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+          else o.material.dispose();
+        }
+      }
+    });
+  });
+
+  while (replacedBalustersGroup.children.length > 0) {
+    const child = replacedBalustersGroup.children[0];
+    replacedBalustersGroup.remove(child);
+  }
+  replacedBalustersGroup.children = []; 
 
   const allOriginalBalusters = [
     ...(elementGroups['s1_baluster'] || []), ...(elementGroups['s2_baluster'] || []),
@@ -1581,7 +1595,7 @@ function replaceBalustersInScene() {
     return;
   }
 
-  // 3. Скрываем старые деревянные балясины
+  // 3. Скрываем старые балясины
   allOriginalBalusters.forEach(m => m.visible = false);
 
   // 4. Получаем шаблон
@@ -1598,8 +1612,9 @@ function replaceBalustersInScene() {
 
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
   const processedMeshes = new Set();
+  const usedPositions = new Set(); // Защита от дублей в одной точке
 
-  // 5. Генерируем балясины
+  // 5. Клонируем
   allOriginalBalusters.forEach((oldMesh) => {
     let groupKey = 's1_baluster';
     for (const k in elementGroups) {
@@ -1609,6 +1624,7 @@ function replaceBalustersInScene() {
     }
     if (elementVisible[groupKey] === false) return;
     
+    // Защита от двойной обработки
     if (processedMeshes.has(oldMesh.uuid)) return;
     processedMeshes.add(oldMesh.uuid);
 
@@ -1620,69 +1636,69 @@ function replaceBalustersInScene() {
 
     if (oldSize.y < 0.1) return; 
 
-    // Функция для создания клона (чтобы не дублировать код)
-    const createClone = (isLong) => {
-        const clone = template.clone(true);
-        
-        // Поворот вертикально
-        clone.rotation.set(0, 0, 0);
-        if (rawSize.x === maxDim) clone.rotation.z = Math.PI / 2;
-        else if (rawSize.z === maxDim) clone.rotation.x = -Math.PI / 2;
-        clone.updateMatrixWorld(true);
+    // Проверяем, есть ли уже клон в этой точке
+    const posKey = oldCenter.x.toFixed(3) + '_' + oldCenter.y.toFixed(3) + '_' + oldCenter.z.toFixed(3);
+    if (usedPositions.has(posKey)) return;
+    usedPositions.add(posKey);
 
-        // Масштаб
-        const orientedBox = new THREE.Box3().setFromObject(clone);
-        const orientedSize = orientedBox.getSize(new THREE.Vector3());
-        
-        if (isLong) {
-            // Для длинной растягиваем по высоте, сохраняя диаметр
-            if (orientedSize.y > 0.001) {
-                const scaleY = oldSize.y / orientedSize.y;
-                clone.scale.set(1, scaleY, 1); 
-            }
-        } else {
-            // Для короткой оставляем исходный масштаб (680 мм)
-            clone.scale.set(1, 1, 1);
+    const clone = template.clone(true);
+    
+    // --- 1. ПОВОРОТ ВЕРТИКАЛЬНО ---
+    clone.rotation.set(0, 0, 0);
+    if (rawSize.x === maxDim) {
+        clone.rotation.z = Math.PI / 2;
+    } else if (rawSize.z === maxDim) {
+        clone.rotation.x = -Math.PI / 2;
+    }
+    clone.updateMatrixWorld(true);
+
+    // --- 2. ПРОВЕРКА: НУЖНО ЛИ УДЛИНЯТЬ? ---
+    const orientedBox = new THREE.Box3().setFromObject(clone);
+    const orientedSize = orientedBox.getSize(new THREE.Vector3());
+    
+    // Если балясина короче, чем нужно для лестницы (разница больше 5 см)
+    const needStretch = orientedSize.y < oldSize.y - 0.05;
+
+    if (needStretch) {
+        // Если нужно удлинить — масштабируем ТОЛЬКО по высоте
+        if (orientedSize.y > 0.001) {
+            const scaleY = oldSize.y / orientedSize.y;
+            clone.scale.set(1, scaleY, 1); 
         }
-        clone.updateMatrixWorld(true);
+    } else {
+        // Если длины хватает — оставляем исходный масштаб (1:1)
+        clone.scale.set(1, 1, 1);
+    }
+    clone.updateMatrixWorld(true);
 
-        // Центрируем
-        const scaledBox = new THREE.Box3().setFromObject(clone);
-        clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
-        clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
-        clone.position.y -= scaledBox.min.y;
+    // --- 3. ЦЕНТРИРУЕМ ---
+    const scaledBox = new THREE.Box3().setFromObject(clone);
+    clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
+    clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
+    clone.position.y -= scaledBox.min.y;
 
-        const wrapper = new THREE.Group();
-        wrapper.add(clone);
-        wrapper.userData.groupKey = groupKey; 
+    const wrapper = new THREE.Group();
+    wrapper.add(clone);
+    wrapper.userData.groupKey = groupKey; 
 
-        wrapper.position.x = oldCenter.x;
-        wrapper.position.z = oldCenter.z;
+    // --- 4. СТАВИМ НА МЕСТО И ВЫРАВНИВАЕМ ПО ПОЛУ ---
+    wrapper.position.x = oldCenter.x;
+    wrapper.position.z = oldCenter.z;
 
-        wrapper.updateMatrixWorld(true);
-        const finalBox = new THREE.Box3().setFromObject(wrapper);
-        wrapper.position.y += (oldBox.min.y - finalBox.min.y);
+    wrapper.updateMatrixWorld(true);
+    const finalBox = new THREE.Box3().setFromObject(wrapper);
+    wrapper.position.y += (oldBox.min.y - finalBox.min.y);
 
-        clone.traverse((o) => {
-          if (o.isMesh) {
-            o.material = sharedMaterial;
-            o.castShadow = true; 
-            o.receiveShadow = true;
-          }
-        });
-        
-        return wrapper;
-    };
+    clone.traverse((o) => {
+      if (o.isMesh) {
+        o.material = sharedMaterial;
+        o.castShadow = true; 
+        o.receiveShadow = true;
+      }
+    });
 
-    // Создаем короткую (в 1-й контейнер) и длинную (во 2-й контейнер)
-    shortBalustersGroup.add(createClone(false));
-    longBalustersGroup.add(createClone(true));
+    replacedBalustersGroup.add(wrapper);
   });
-
-  // 6. Управление видимостью
-  // По умолчанию показываем длинные, короткие скрываем
-  shortBalustersGroup.visible = false;
-  longBalustersGroup.visible = true;
 
   isReplacing = false;
 }
