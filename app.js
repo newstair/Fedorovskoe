@@ -1529,13 +1529,13 @@ function buildBalusterPanel() {
 const replacedBalustersGroup = new THREE.Group();
 scene.add(replacedBalustersGroup);
 
-let isReplacing = false; // Флаг защиты от двойного вызова
+let isReplacing = false; 
 
 function replaceBalustersInScene() {
   if (isReplacing) return;
   isReplacing = true;
 
-  // 1. ТОТАЛЬНАЯ ЗАЧИСТКА СЦЕНЫ ОТ СТАРЫХ РОЗОВЫХ БАЛЯСИН
+  // 1. ТОТАЛЬНАЯ ЗАЧИСТКА СЦЕНЫ
   const toRemove = [];
   scene.traverse((obj) => {
     if (obj.isGroup && obj.userData.groupKey) {
@@ -1603,13 +1603,8 @@ function replaceBalustersInScene() {
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
-  let axisToRotate = null;
-  if (Math.abs(rawSize.x - maxDim) < 0.001) axisToRotate = 'x';
-  else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
-  
-  // Защита от дублей по UUID (вместо координат)
   const processedMeshes = new Set();
 
   // 5. Клонируем
@@ -1622,7 +1617,6 @@ function replaceBalustersInScene() {
     }
     if (elementVisible[groupKey] === false) return;
 
-    // Пропускаем, если уже обработали этот меш
     if (processedMeshes.has(oldMesh.uuid)) return;
     processedMeshes.add(oldMesh.uuid);
 
@@ -1630,54 +1624,59 @@ function replaceBalustersInScene() {
     
     const oldBox = new THREE.Box3().setFromObject(oldMesh);
     const oldSize = oldBox.getSize(new THREE.Vector3());
-    const oldCenter = oldBox.getCenter(new THREE.Vector3());
 
     if (oldSize.y < 0.1) return; 
 
-    // Берем реальную длину (максимальный габарит), чтобы балясина достала до поручня
-    const targetLength = Math.max(oldSize.x, oldSize.y, oldSize.z);
-
     const clone = template.clone(true);
     
-    // Поворачиваем вертикально
-    if (axisToRotate === 'x') clone.rotation.x = -Math.PI / 2;
-    else if (axisToRotate === 'z') clone.rotation.z = Math.PI / 2;
-    
+    // --- 1. ПРАВИЛЬНЫЙ ПОВОРОТ ВЕРТИКАЛЬНО ---
+    clone.rotation.set(0, 0, 0);
+    if (rawSize.x === maxDim) {
+        // Если модель лежит вдоль X, поворачиваем на 90 град вокруг Z
+        clone.rotation.z = Math.PI / 2;
+    } else if (rawSize.z === maxDim) {
+        // Если модель лежит вдоль Z, поворачиваем на -90 град вокруг X
+        clone.rotation.x = -Math.PI / 2;
+    }
     clone.updateMatrixWorld(true);
 
-    // Масштабируем ТОЛЬКО по длине (Y), сохраняя диаметр
+    // --- 2. МАСШТАБИРУЕМ ПО ВЫСОТЕ (Y) ---
     const orientedBox = new THREE.Box3().setFromObject(clone);
     const orientedSize = orientedBox.getSize(new THREE.Vector3());
     
     if (orientedSize.y > 0.001) {
-      const scaleY = targetLength / orientedSize.y;
+      const scaleY = oldSize.y / orientedSize.y;
       clone.scale.set(1, scaleY, 1); 
     }
     clone.updateMatrixWorld(true);
 
-    // Центрируем по X/Z и ставим низ на 0
+    // --- 3. ЦЕНТРИРУЕМ (X=0, Z=0, низ на Y=0) ---
     const scaledBox = new THREE.Box3().setFromObject(clone);
     clone.position.x -= (scaledBox.min.x + scaledBox.max.x) / 2;
     clone.position.z -= (scaledBox.min.z + scaledBox.max.z) / 2;
     clone.position.y -= scaledBox.min.y;
 
+    // --- 4. НАХОДИМ РЕАЛЬНЫЙ НИЗ СТАРОЙ БАЛЯСИНЫ ---
+    // Вычисляем локальный bounding box геометрии
+    if (!oldMesh.geometry.boundingBox) oldMesh.geometry.computeBoundingBox();
+    const oldGeoBox = oldMesh.geometry.boundingBox;
+    
+    // Берем центр нижней грани в локальных координатах
+    const localBottom = new THREE.Vector3(
+        (oldGeoBox.min.x + oldGeoBox.max.x) / 2,
+        oldGeoBox.min.y,
+        (oldGeoBox.min.z + oldGeoBox.max.z) / 2
+    );
+    // Переводим в мировые координаты (учитывая наклон лестницы)
+    const worldBottom = localBottom.applyMatrix4(oldMesh.matrixWorld);
+
+    // --- 5. СОБИРАЕМ ---
     const wrapper = new THREE.Group();
     wrapper.add(clone);
     wrapper.userData.groupKey = groupKey; 
 
-    // --- ВОЗВРАЩАЕМ НАКЛОН ПЕРИЛ ---
-    const oldQuat = new THREE.Quaternion();
-    oldMesh.getWorldQuaternion(oldQuat);
-    wrapper.quaternion.copy(oldQuat);
-
-    // Ставим в центр старой по X и Z
-    wrapper.position.x = oldCenter.x;
-    wrapper.position.z = oldCenter.z;
-
-    // Выравниваем по полу с учетом наклона
-    wrapper.updateMatrixWorld(true);
-    const finalBox = new THREE.Box3().setFromObject(wrapper);
-    wrapper.position.y += (oldBox.min.y - finalBox.min.y);
+    // Ставим обертку ровно в эту нижнюю точку
+    wrapper.position.copy(worldBottom);
 
     clone.traverse((o) => {
       if (o.isMesh) {
