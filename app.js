@@ -2159,14 +2159,6 @@ function calculateTechCard() {
 // Выставляем функцию наружу, чтобы можно было тестировать из консоли
 window.calculateTechCard = calculateTechCard;
 
-  const totalCost = totalWoodCost + totalWorkCost;
-  
-  console.log('%c─────────────────────────────────────────', 'color: #555');
-  console.log(`%c💰 ВСЕГО ДЕРЕВО: ${totalWoodCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
-  console.log(`%c🛠️ ВСЕГО РАБОТА: ${totalWorkCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
-  console.log(`%c🔥 ОБЩАЯ СЕБЕСТОИМОСТЬ: ${totalCost.toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold; font-size: 16px');
-  
-  return { totalWoodCost, totalWorkCost, totalCost };
 }
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ BOM-ЭЛЕМЕНТОВ
