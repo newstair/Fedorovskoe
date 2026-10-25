@@ -2315,7 +2315,7 @@ function openTechCard() {
   // Показываем окно
   document.getElementById('techCardOverlay').classList.add('show');
 }
-
+window.openTechCard = openTechCard;
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ BOM-ЭЛЕМЕНТОВ
    ═══════════════════════════════════════════════════════════════ */
