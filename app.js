@@ -1123,6 +1123,9 @@ function makeHeightLabel(text, yPos) {
   const sprite = new THREE.Sprite(mat);
   sprite.position.set(0, yPos + 0.15, 0);
   sprite.scale.set(0.55, 0.165, 1);
+  
+  // Даем табличке имя, чтобы потом можно было отловить клик по ней
+  sprite.name = 'humanHeightLabel'; 
   return sprite;
 }
 
@@ -1173,7 +1176,25 @@ canvas.addEventListener('pointerup', (e) => {
   pointerDown = false;
   const dx = Math.abs(e.clientX - downX);
   const dy = Math.abs(e.clientY - downY);
+  
   if (dx < 6 && dy < 6) {
+    // 1. Сначала проверяем, не нажали ли мы на табличку с ростом
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    
+    if (humanGroup.visible) {
+      const labelHits = raycaster.intersectObjects(humanGroup.children, true);
+      // Если нашли пересечение с табличкой
+      const clickedLabel = labelHits.find(hit => hit.object.name === 'humanHeightLabel' || hit.object.parent?.name === 'humanHeightLabel');
+      if (clickedLabel) {
+        floatHuman.classList.add('show'); // Открываем нижнюю панель
+        return; // Выходим, чтобы не выполнять код ниже (не ставить человечка)
+      }
+    }
+
+    // 2. Если кликнули не по табличке, выполняем стандартные действия
     if (rulerMode) handleRulerTap(e.clientX, e.clientY);
     else if (humanMode) placeHuman(e.clientX, e.clientY);
   }
