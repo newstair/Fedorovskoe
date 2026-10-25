@@ -235,7 +235,9 @@
   <button class="btn" id="btnAdminCost" style="opacity: 0.6; font-size: 12px;">
     <span class="ico">⚙️</span> Настройки (Админ)
   </button>
-
+  <button class="btn" id="btnTechCard" style="background: rgba(91, 140, 255, 0.1); border: 1px solid var(--accent); margin-bottom: 10px;">
+    <span class="ico">📊</span> Техкарта (Производство)
+  </button>
 </aside>
 
 <!-- ═══ Инфо-панель ═══ -->
@@ -506,6 +508,23 @@
         <button class="btn primary" id="adminSettingsSave">💾 Сохранить</button>
         <button class="btn" id="adminSettingsCloseBtn">Закрыть</button>
       </div>
+      <!-- ═══ Модальное окно: Техкарта (Производство) ═══ -->
+<div class="modal-overlay" id="techCardOverlay">
+  <div class="modal" style="max-width: 800px;">
+    <div class="modal-header">
+      <div>
+        <span class="title">📊 Технологическая карта</span>
+        <span class="subtitle">Внутренний расчет себестоимости</span>
+      </div>
+      <button class="modal-close" id="techCardClose" aria-label="Закрыть">✕</button>
+    </div>
+    
+    <div class="modal-body" id="techCardBody" style="max-height: 70vh; overflow-y: auto;">
+      <!-- Сюда код будет вставлять таблицу -->
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" id="techCardCloseBtn">Закрыть</button>
     </div>
   </div>
 </div>
