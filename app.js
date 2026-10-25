@@ -1420,7 +1420,12 @@ document.getElementById('btnReset').addEventListener('click', () => {
 const adminSettingsOverlay = document.getElementById('adminSettingsOverlay');
 const adminSettingsClose = document.getElementById('adminSettingsClose');
 const adminSettingsCloseBtn = document.getElementById('adminSettingsCloseBtn');
+const adminSettingsSave = document.getElementById('adminSettingsSave');
+const adminSettingsDownload = document.getElementById('adminSettingsDownload');
 
+let productionPrices = {}; // Здесь будем хранить текущие цены
+
+// Функция закрытия
 function closeAdminSettings() {
   if (adminSettingsOverlay) adminSettingsOverlay.classList.remove('show');
 }
@@ -1433,6 +1438,89 @@ if (adminSettingsOverlay) {
   });
 }
 
+// 1. Загрузка цен при старте
+async function loadProductionPrices() {
+  try {
+    // Пытаемся взять сохраненные данные из памяти браузера
+    const saved = localStorage.getItem('production_prices');
+    if (saved) {
+      productionPrices = JSON.parse(saved);
+      console.log('✔ Настройки загружены из памяти браузера');
+    } else {
+      // Если в памяти нет, берем из файла
+      const r = await fetch('production_prices.json', { cache: 'no-store' });
+      if (r.ok) {
+        productionPrices = await r.json();
+        console.log('✔ Настройки загружены из файла production_prices.json');
+      }
+    }
+  } catch (e) {
+    console.warn('Не удалось загрузить production_prices.json', e);
+  }
+  updateAdminUI();
+}
+
+// 2. Заполнение полей ввода на основе загруженных цен
+function updateAdminUI() {
+  for (const key in productionPrices) {
+    const input = document.getElementById(key);
+    if (input) {
+      input.value = productionPrices[key];
+    }
+  }
+}
+
+// 3. Сохранение цен из полей ввода в память
+if (adminSettingsSave) {
+  adminSettingsSave.addEventListener('click', () => {
+    for (const key in productionPrices) {
+      const input = document.getElementById(key);
+      if (input) {
+        productionPrices[key] = parseFloat(input.value) || 0;
+      }
+    }
+    // Сохраняем в память браузера
+    localStorage.setItem('production_prices', JSON.stringify(productionPrices));
+    showToast('Настройки успешно сохранены в браузере!', true);
+    closeAdminSettings();
+  });
+}
+
+// 4. Скачивание JSON файла для GitHub
+if (adminSettingsDownload) {
+  adminSettingsDownload.addEventListener('click', () => {
+    // Сначала собираем актуальные данные с экрана
+    for (const key in productionPrices) {
+      const input = document.getElementById(key);
+      if (input) {
+        productionPrices[key] = parseFloat(input.value) || 0;
+      }
+    }
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(productionPrices, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href",     dataStr);
+    downloadAnchorNode.setAttribute("download", "production_prices.json");
+    document.body.appendChild(downloadAnchorNode); // required for firefox
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    showToast('Файл скачан. Замените его на GitHub!', true);
+  });
+}
+
+// 5. Обработчик кнопки в меню (Пароль)
+document.getElementById('btnAdminCost').addEventListener('click', () => {
+  const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
+  
+  if (pass === ADMIN_PASSWORD) {
+    if (adminSettingsOverlay) adminSettingsOverlay.classList.add('show');
+  } else if (pass !== null) { 
+    showToast('Неверный пароль!', true);
+  }
+});
+
+// Вызываем загрузку цен при старте (найди место в самом низу файла, где запускается приложение, и добавь туда вызов, или просто оставь этот вызов тут, он сработает после загрузки DOM)
+loadProductionPrices();
 document.getElementById('btnAdminCost').addEventListener('click', () => {
   const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
   
