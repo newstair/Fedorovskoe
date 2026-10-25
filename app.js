@@ -2218,6 +2218,7 @@ function calculateTechCard() {
     hardwareDetails: { boltsCount, plugs20, plugs35, glueKg }
   };
 }
+window.calculateTechCard = calculateTechCard; 
 function openTechCard() {
   const data = calculateTechCard();
   if (!data) return;
