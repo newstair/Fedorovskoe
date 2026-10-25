@@ -353,15 +353,23 @@
         </div>
       </div>
 
-      <!-- Блок: Работа (ЗП) -->
+           <!-- Блок: Работа (ЗП) -->
       <div style="margin-bottom: 20px;">
         <h4 style="color: var(--accent); margin-bottom: 10px;">🛠️ Стоимость работ (ЗП)</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
           <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Склейка (до 2м) ₽/м²: <input type="number" id="work_glue_short" value="500" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
           <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Склейка (>2м) ₽/м²: <input type="number" id="work_glue_long" value="750" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
           <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Калибровка ₽/м²: <input type="number" id="work_calibration" value="200" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
-          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Шлифовка ₽/м²: <input type="number" id="work_sanding" value="300" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
           <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Покраска ₽/м²: <input type="number" id="work_painting" value="600" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+
+        <h5 style="color: #aaa; margin-bottom: 8px; font-size: 12px; margin-top: 15px;">Шлифовка по породам (₽/м²):</h5>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Сосна: <input type="number" id="work_sanding_pine" value="300" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Бук: <input type="number" id="work_sanding_beech" value="400" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Ясень: <input type="number" id="work_sanding_ash" value="450" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Дуб: <input type="number" id="work_sanding_oak" value="500" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
         </div>
       </div>
 
