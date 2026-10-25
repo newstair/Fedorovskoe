@@ -288,24 +288,6 @@
 <!-- ═══ Toast ═══ -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══ Модальное окно: Расчёт стоимости ═══ -->
-<div class="modal-overlay" id="priceModalOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <div>
-        <span class="title">💰 Расчёт стоимости</span>
-        <span class="subtitle" id="priceModalSubtitle">—</span>
-      </div>
-      <button class="modal-close" id="priceModalClose" aria-label="Закрыть">✕</button>
-    </div>
-    <div class="modal-body" id="priceModalBody"></div>
-        <div class="modal-footer" style="display: flex; justify-content: space-between; width: 100%;">
-      <button class="btn" id="adminSettingsDownload">📥 Скачать JSON</button>
-      <div style="display: flex; gap: 10px;">
-        <button class="btn primary" id="adminSettingsSave">💾 Сохранить</button>
-        <button class="btn" id="adminSettingsCloseBtn">Закрыть</button>
-      </div>
-    </div>
 
 <!-- ═══ Модальное окно: Параметры лестницы ═══ -->
 <div class="modal-overlay" id="paramsModalOverlay">
@@ -323,8 +305,7 @@
     </div>
   </div>
 </div>
-<!-- ═══ Модальное окно: Настройки производства (Админ) ═══ -->
- <!-- ═══ Модальное окно: Расчёт стоимости ═══ -->
+<!-- ═══ Модальное окно: Расчёт стоимости ═══ -->
 <div class="modal-overlay" id="priceModalOverlay">
   <div class="modal">
     <div class="modal-header">
@@ -376,6 +357,8 @@
     </div>
   </div>
 </div>   
+
+<!-- ═══ Модальное окно: Настройки производства (Админ) ═══ -->
 <div class="modal-overlay" id="adminSettingsOverlay">
   <div class="modal" style="max-width: 650px;">
     <div class="modal-header">
@@ -482,9 +465,12 @@
       </div>
 
     </div>
-    <div class="modal-footer">
-      <button class="btn primary" id="adminSettingsSave">💾 Сохранить</button>
-      <button class="btn" id="adminSettingsCloseBtn">Закрыть</button>
+    <div class="modal-footer" style="display: flex; justify-content: space-between; width: 100%;">
+      <button class="btn" id="adminSettingsDownload">📥 Скачать JSON</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn primary" id="adminSettingsSave">💾 Сохранить</button>
+        <button class="btn" id="adminSettingsCloseBtn">Закрыть</button>
+      </div>
     </div>
   </div>
 </div>
