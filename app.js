@@ -2131,7 +2131,6 @@ function calculateTechCard() {
         workCost += calculateWorkCost('sanding', area);
 
         // ЧПУ (упрощенно: если деталь есть в DXF, считаем что это 1 щит)
-        // В идеале надо группировать, но для теста пока так
         if (!isBar && dxfCache[d.name]) {
            workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
         }
@@ -2146,6 +2145,19 @@ function calculateTechCard() {
       console.log(`├ 📦 ${catKey.toUpperCase()}: Дерево: ${categoryWood.toFixed(2)} ₽ | Работа: ${categoryWork.toFixed(2)} ₽`);
     }
   });
+
+  const totalCost = totalWoodCost + totalWorkCost;
+  
+  console.log('%c─────────────────────────────────────────', 'color: #555');
+  console.log(`%c💰 ВСЕГО ДЕРЕВО: ${totalWoodCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
+  console.log(`%c🛠️ ВСЕГО РАБОТА: ${totalWorkCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
+  console.log(`%c🔥 ОБЩАЯ СЕБЕСТОИМОСТЬ: ${totalCost.toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold; font-size: 16px');
+  
+  return { totalWoodCost, totalWorkCost, totalCost };
+}
+
+// Выставляем функцию наружу, чтобы можно было тестировать из консоли
+window.calculateTechCard = calculateTechCard;
 
   const totalCost = totalWoodCost + totalWorkCost;
   
