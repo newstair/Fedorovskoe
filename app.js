@@ -1618,7 +1618,7 @@ function replaceBalustersInScene() {
   else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
   // Радиус хвостовиков (30 мм диаметр = 0.015 м)
-  const pinRadius = 0.015;
+  const pinRadius = Math.min(rawSize.x, rawSize.z) / 2;
   
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
   const processedMeshes = new Set();
