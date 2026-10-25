@@ -552,6 +552,8 @@ function parseBOM(xmlText) {
 async function loadBOM() {
   bomGroups = [];
   let xmlFiles = [];
+  
+  // 1. Пытаемся найти XML через API GitHub
   try {
     const parts = location.pathname.split('/').filter(x => x);
     const owner = location.hostname.split('.')[0];
@@ -565,6 +567,7 @@ async function loadBOM() {
     }
   } catch (e) { console.warn('GitHub API не сработал:', e.message); }
 
+  // 2. Если не нашли, ищем рядом с моделью
   if (!xmlFiles.length && MODEL_FILE) {
     const fallback = MODEL_FILE.replace(/\.(dae|xml)$/i, '.xml');
     try {
@@ -573,13 +576,16 @@ async function loadBOM() {
     } catch (e) { /* ignore */ }
   }
 
+  // 3. Если XML нет вообще
   if (!xmlFiles.length) {
     console.log('XML не найдены');
+    updateFloorsUI(0); // Показываем только 1 этаж
     return;
   }
 
   console.log('%c→ Найдено XML: ' + xmlFiles.length, 'color:#5b8cff;font-weight:bold');
 
+  // 4. Загружаем и парсим каждый XML
   for (const name of xmlFiles) {
     try {
       const r = await fetch(name, { cache: 'no-store' });
@@ -602,6 +608,9 @@ async function loadBOM() {
 
   bomGroups.sort((a, b) => a.floor - b.floor);
   if (bomGroups.length) bomData = { items: bomGroups[0].items, params: bomGroups[0].params };
+  
+  // 5. Обновляем меню в зависимости от количества XML
+  updateFloorsUI(bomGroups.length);
 }
 
 /* ═══════════════════════════════════════════════════════════════
