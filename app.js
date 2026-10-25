@@ -11,6 +11,7 @@ const MODEL_FILE_DEFAULT = 'model.dae';
 let MODEL_FILE = null;
 const UNIT_SCALE = 1.0;
 const HUMAN_FILE = 'human.glb';
+const ADMIN_PASSWORD = 'admin'; 
 
 const TEXTURE_LIST = [
   { file: 'con_pine.bmp', name: 'Сосна' },
