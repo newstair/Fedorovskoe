@@ -1610,6 +1610,7 @@ function replaceBalustersInScene() {
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
+   console.log("📏 Размер шаблона:", rawSize.x, rawSize.y, rawSize.z);
   const templateHeight = maxDim; // Высота точеной части (например, 0.68 м)
   
   // Определяем, как повернуть шаблон (чтобы он стоял вертикально)
