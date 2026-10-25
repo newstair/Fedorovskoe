@@ -1126,6 +1126,7 @@ function makeHeightLabel(text, yPos) {
   return sprite;
 }
 
+
 function setHumanMode(on) {
   humanMode = on;
   document.getElementById('btnHuman').classList.toggle('human-on', on);
@@ -1133,6 +1134,12 @@ function setHumanMode(on) {
   humanHint.classList.toggle('show', on);
   if (on && rulerMode) setRulerMode(false);
   floatHuman.classList.toggle('show', on && humanGroup.visible);
+
+  // --- ДОБАВЛЕНО: Автоматически закрываем боковую панель на мобильных ---
+  if (on && isMobile()) {
+    panelEl.classList.remove('open');
+    panelToggle.classList.remove('active');
+  }
 }
 
 function placeHuman(clientX, clientY) {
@@ -1269,7 +1276,7 @@ document.getElementById('floatRulerOff').addEventListener('click', () => setRule
 document.getElementById('btnHuman').addEventListener('click', () => {
   setHumanMode(!humanMode);
   if (humanMode && !humanGroup.visible && currentModel) {
-    showToast('Тапните по ступени, чтобы поставить человечка', true);
+    showToast('Нажми на нужную ступень', true);
   }
 });
 document.getElementById('btnHumanRemove').addEventListener('click', () => {
