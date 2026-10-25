@@ -1441,7 +1441,7 @@ if (adminSettingsOverlay) {
 // 1. Загрузка цен при старте
 async function loadProductionPrices() {
   try {
-    // Пытаемся взять сохраненные данные из памяти браузера
+    // Сначала пытаемся взять сохраненные данные из памяти браузера
     const saved = localStorage.getItem('production_prices');
     if (saved) {
       productionPrices = JSON.parse(saved);
@@ -1470,32 +1470,33 @@ function updateAdminUI() {
   }
 }
 
-// 3. Сохранение цен из полей ввода в память
+// 3. Универсальная функция сбора данных со всех полей на экране
+function collectPricesFromUI() {
+  // Ищем ВСЕ поля с числами внутри окна админки
+  const allInputs = document.querySelectorAll('#adminSettingsOverlay input[type="number"]');
+  
+  allInputs.forEach(input => {
+    if (input.id) {
+      // Записываем значение по его id в наш объект
+      productionPrices[input.id] = parseFloat(input.value) || 0;
+    }
+  });
+}
+
+// 4. Сохранение цен из полей ввода в память
 if (adminSettingsSave) {
   adminSettingsSave.addEventListener('click', () => {
-    for (const key in productionPrices) {
-      const input = document.getElementById(key);
-      if (input) {
-        productionPrices[key] = parseFloat(input.value) || 0;
-      }
-    }
-    // Сохраняем в память браузера
+    collectPricesFromUI(); // Собираем ВСЕ поля с экрана
     localStorage.setItem('production_prices', JSON.stringify(productionPrices));
     showToast('Настройки успешно сохранены в браузере!', true);
     closeAdminSettings();
   });
 }
 
-// 4. Скачивание JSON файла для GitHub
+// 5. Скачивание JSON файла для GitHub
 if (adminSettingsDownload) {
   adminSettingsDownload.addEventListener('click', () => {
-    // Сначала собираем актуальные данные с экрана
-    for (const key in productionPrices) {
-      const input = document.getElementById(key);
-      if (input) {
-        productionPrices[key] = parseFloat(input.value) || 0;
-      }
-    }
+    collectPricesFromUI(); // Собираем ВСЕ поля с экрана
     
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(productionPrices, null, 2));
     const downloadAnchorNode = document.createElement('a');
@@ -1508,7 +1509,7 @@ if (adminSettingsDownload) {
   });
 }
 
-// 5. Обработчик кнопки в меню (Пароль)
+// 6. Обработчик кнопки в меню (Пароль)
 document.getElementById('btnAdminCost').addEventListener('click', () => {
   const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
   
@@ -1519,7 +1520,7 @@ document.getElementById('btnAdminCost').addEventListener('click', () => {
   }
 });
 
-// Вызываем загрузку цен при старте (найди место в самом низу файла, где запускается приложение, и добавь туда вызов, или просто оставь этот вызов тут, он сработает после загрузки DOM)
+// Вызываем загрузку цен при старте
 loadProductionPrices();
 
 document.getElementById('btnSavePos').addEventListener('click', () => {
