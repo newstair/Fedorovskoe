@@ -2156,20 +2156,26 @@ function calculatePrice(km) {
    МОДАЛКА СМЕТЫ
    ═══════════════════════════════════════════════════════════════ */
 let currentKm = 0;
+
 function updateFloorsUI(xmlCount) {
   const uiS2 = document.getElementById('group_ui_s2');
   const uiR2 = document.getElementById('group_ui_r2');
   const uiR3 = document.getElementById('group_ui_r3');
 
+  // Если 1 XML (1-2): Лестница 1-2 и Ограждение 2 этажа
   if (xmlCount <= 1) {
     if (uiS2) uiS2.style.display = 'none';
-    if (uiR2) uiR2.style.display = 'none';
+    if (uiR2) uiR2.style.display = 'block'; // Ограждение 2-го есть всегда, если есть 1-й этаж
     if (uiR3) uiR3.style.display = 'none';
-  } else if (xmlCount === 2) {
+  } 
+  // Если 2 XML (1-2, 2-3): Появляется Лестница 2-3 и Ограждение 3 этажа
+  else if (xmlCount === 2) {
     if (uiS2) uiS2.style.display = 'block';
     if (uiR2) uiR2.style.display = 'block';
-    if (uiR3) uiR3.style.display = 'none';
-  } else {
+    if (uiR3) uiR3.style.display = 'block'; // ВОТ ЗДЕСЬ ИСПРАВЛЕНИЕ
+  } 
+  // Если 3 XML (1-2, 2-3, 3-4): Показываем всё
+  else {
     if (uiS2) uiS2.style.display = 'block';
     if (uiR2) uiR2.style.display = 'block';
     if (uiR3) uiR3.style.display = 'block';
