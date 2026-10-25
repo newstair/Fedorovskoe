@@ -324,6 +324,58 @@
   </div>
 </div>
 <!-- ═══ Модальное окно: Настройки производства (Админ) ═══ -->
+ <!-- ═══ Модальное окно: Расчёт стоимости ═══ -->
+<div class="modal-overlay" id="priceModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <span class="title">💰 Расчёт стоимости</span>
+        <span class="subtitle" id="priceModalSubtitle">—</span>
+      </div>
+      <button class="modal-close" id="priceModalClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-body" id="priceModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn" id="priceModalCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Модальное окно: Параметры лестницы ═══ -->
+<div class="modal-overlay" id="paramsModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <span class="title">📐 Параметры лестницы</span>
+        <span class="subtitle" id="paramsModalSubtitle">—</span>
+      </div>
+      <button class="modal-close" id="paramsModalClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-body" id="paramsModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn" id="paramsModalCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Модальное окно: Бланк заказа ═══ -->
+<div class="modal-overlay" id="orderModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <span class="title">📄 Бланк заказа</span>
+        <span class="subtitle" id="orderModalSubtitle">—</span>
+      </div>
+      <button class="modal-close" id="orderModalClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-body" id="orderModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn" id="orderDownload">📥 Скачать PDF</button>
+      <button class="btn primary" id="orderShare">🔗 Поделиться</button>
+      <button class="btn" id="orderModalCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>   
 <div class="modal-overlay" id="adminSettingsOverlay">
   <div class="modal" style="max-width: 650px;">
     <div class="modal-header">
