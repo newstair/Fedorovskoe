@@ -1054,7 +1054,8 @@ humanLoader.load(HUMAN_FILE, (gltf) => {
     }
   });
   console.log('%c✔ ' + HUMAN_FILE + ' загружен', 'color:#31d0aa;font-weight:bold');
-  if (humanGroup.visible) makeHumanFigure(humanHeight);
+  // ВСЕГДА создаем модель, как только она загрузилась (убирает эффект цилиндра)
+  makeHumanFigure(humanHeight);
 }, undefined, (err) => { console.warn('human.glb не загружен:', err); });
 
 function setHumanHeight(cm) {
@@ -1142,6 +1143,10 @@ function placeHuman(clientX, clientY) {
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObject(currentModel, true);
   if (!hits.length) return;
+  
+  // Принудительно обновляем фигуру перед постановкой (защита от заглушки)
+  makeHumanFigure(humanHeight);
+
   humanGroup.position.copy(hits[0].point.clone());
   humanGroup.visible = true;
   floatHuman.classList.add('show');
