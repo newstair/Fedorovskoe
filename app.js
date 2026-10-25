@@ -2031,13 +2031,14 @@ document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
   buildColorPanel(); 
   showToast(paintEnabled ? 'Покраска включена' : 'Покраска отключена', true);
 });
-/* ═══════════════════════════════════════════════════════════════
+
+   /* ═══════════════════════════════════════════════════════════════
    ДВИЖОК РАСЧЕТА (ТЕХКАРТА)
    ═══════════════════════════════════════════════════════════════ */
 
 // 1. Определяем, какая порода дерева выбрана (по умолчанию сосна)
 function getCurrentWoodKey() {
-  const finish = currentFinish.treads; // Берем породу по ступеням (или можно по балясинам)
+  const finish = currentFinish.treads || currentFinish.baluster;
   if (!finish || !finish.file) return 'pine';
   if (finish.file.includes('oak')) return 'oak';
   if (finish.file.includes('ash')) return 'ash';
@@ -2045,61 +2046,80 @@ function getCurrentWoodKey() {
   return 'pine';
 }
 
-// 2. Считаем стоимость дерева для одной детали
+// 2. Получаем коэффициент сложности для выбранной породы
+function getWoodHardnessCoef() {
+  const woodKey = getCurrentWoodKey();
+  return productionPrices['coef_hard_' + woodKey] || 1.0;
+}
+
+// 3. Считаем стоимость дерева для одной детали
 function calculateWoodCost(t, w, l, isBar = false) {
   const woodKey = getCurrentWoodKey();
   const pricePerM3 = productionPrices['price_wood_' + woodKey] || 32000;
-  const coefKey = isBar ? 'coef_waste_bars' : 'coef_waste_boards';
-  const wasteCoef = productionPrices[coefKey] || 1.25;
+  const wasteCoef = isBar ? (productionPrices['coef_waste_bars'] || 1.15) : (productionPrices['coef_waste_boards'] || 1.25);
   
-  // Переводим мм в метры и считаем объем
-  const volumeM3 = (t / 1000) * (w / 1000) * (l / 1000);
-  // Умножаем на коэффициент отходов и на цену
+  // Если толщина/ширина нулевые (для балясин/столбов), ставим дефолтные
+  let realT = t > 0 ? t : (isBar ? 45 : 40);
+  let realW = w > 0 ? w : (isBar ? 45 : 100);
+
+  const volumeM3 = (realT / 1000) * (realW / 1000) * (l / 1000);
   const cost = volumeM3 * wasteCoef * pricePerM3;
   
   return cost;
 }
 
-// 3. Считаем стоимость работы (ЗП) с учетом породы
+// 4. Считаем стоимость базовых работ (склейка, калибровка, шлифовка)
 function calculateWorkCost(workType, area, lengthM = 0) {
-  const woodKey = getCurrentWoodKey();
-  
-  // Коэффициенты сложности пород (пока берем из кода, потом добавим в админку)
-  const woodCoefs = { pine: 1.0, beech: 1.2, ash: 1.3, oak: 1.5 };
-  const woodCoef = woodCoefs[woodKey] || 1.0;
-
-  let baseCost = 0;
-
+  let baseRate = 0;
   if (workType === 'glue') {
-    const rate = lengthM > 2 ? productionPrices.work_glue_long : productionPrices.work_glue_short;
-    baseCost = area * (rate || 500);
+    baseRate = lengthM > 2 ? (productionPrices.work_glue_long || 750) : (productionPrices.work_glue_short || 500);
   } else if (workType === 'calibration') {
-    baseCost = area * (productionPrices.work_calibration || 200);
+    baseRate = productionPrices.work_calibration || 200;
   } else if (workType === 'sanding') {
-    const rate = productionPrices['work_sanding_' + woodKey] || 300;
-    baseCost = area * rate;
+    baseRate = productionPrices.base_sanding || 300;
   } else if (workType === 'painting') {
-    baseCost = area * (productionPrices.work_painting || 600);
+    baseRate = productionPrices.work_painting || 600;
   }
-
-  return baseCost * woodCoef;
+  return area * baseRate * getWoodHardnessCoef();
 }
+
+// 5. Считаем стоимость токарки (балясины)
+function calculateTurningCost(item) {
+  const hardness = getWoodHardnessCoef();
+  let lengthCoef = 1.0;
+  if (item.L <= 700) lengthCoef = productionPrices.coef_len_680 || 1.0;
+  else if (item.L <= 900) lengthCoef = productionPrices.coef_len_860 || 1.15;
+  else lengthCoef = productionPrices.coef_len_930 || 1.3;
+
+  // Берем цену того вида балясин, который выбран сейчас в меню
+  const bType = (selectedBaluster && selectedBaluster !== 'original') ? selectedBaluster : '1';
+  const basePrice = productionPrices['work_turn_b' + bType] || 200;
+
+  return basePrice * lengthCoef * hardness;
+}
+
+// 6. Главная функция расчета
 function calculateTechCard() {
   if (!bomData || !bomData.items) {
     showToast('Нет данных XML для расчета', true);
     return;
   }
 
-  // Берем классификацию (как в клиентской смете)
   const floor = bomData.params.floorName ? parseInt(bomData.params.floorName.match(/(\d+)/)[1], 10) : 1;
   const classified = classifyBOMItems(bomData.items, floor);
   
   let totalWoodCost = 0;
   let totalWorkCost = 0;
+  let totalGlueArea = 0;
+  
+  // Счетчики для заглушек и болтов
+  let plugs20 = 0;
+  let plugs35 = 0;
+  let boltsCount = 0;
 
   console.log('%c📊 НАЧАЛО РАСЧЕТА ТЕХКАРТЫ', 'color: #ff9f43; font-weight: bold; font-size: 14px');
+  console.log(`Порода: ${getCurrentWoodKey().toUpperCase()} (коэф. работы: ${getWoodHardnessCoef()})`);
 
-  // Проходим по всем группам (stair и railing)
   ['stair', 'railing'].forEach(section => {
     for (const catKey in classified[section]) {
       const items = classified[section][catKey];
@@ -2109,32 +2129,50 @@ function calculateTechCard() {
       let categoryWork = 0;
 
       items.forEach(d => {
-        // 1. Считаем дерево
-        let isBar = (catKey === 'baluster' || catKey === 'posts');
+        const isBar = (catKey === 'baluster' || catKey === 'posts');
+        
+        // --- 1. ДЕРЕВО ---
         let woodCost = calculateWoodCost(d.T, d.W, d.L, isBar);
 
-        // 2. Считаем работу
-        // Берем площадь из DXF (или считаем по габаритам, если DXF нет)
+        // --- 2. ПЛОЩАДЬ (для работ) ---
         let area = 0;
         if (dxfCache[d.name]) {
-          area = (dxfCache[d.name].area / 1e6) * 2; // Умножаем на 2 (верх и низ)
+          area = (dxfCache[d.name].area / 1e6) * 2; // верх и низ
         } else {
-          area = ((d.W / 1000) * (d.L / 1000)) * 2;
+          // Если нет DXF, берем габариты (для столбов и балясин)
+          const w = d.W > 0 ? d.W : (isBar ? 45 : 100);
+          area = ((w / 1000) * (d.L / 1000)) * 2;
         }
 
+        // --- 3. РАБОТА ---
         let workCost = 0;
-        // Склейка и калибровка только для щитов
-        if (!isBar) {
+        if (catKey === 'baluster') {
+           workCost += calculateTurningCost(d);
+           workCost += calculateWorkCost('sanding', area); // Балясины тоже шлифуются
+        } else if (catKey === 'posts') {
+           // Столбы: склейка, калибровка, шлифовка, ЧПУ
+           workCost += area * (productionPrices.work_post_glue || 500) * getWoodHardnessCoef();
+           workCost += area * (productionPrices.work_post_calib || 200) * getWoodHardnessCoef();
+           workCost += area * (productionPrices.work_post_sanding || 300) * getWoodHardnessCoef();
+           workCost += (productionPrices.work_post_cnc || 350) * getWoodHardnessCoef(); // ЧПУ за шт
+           plugs35 += (productionPrices.rule_plug_post || 4); // Заглушки на столб
+        } else {
+           // Щиты: склейка, калибровка, шлифовка
            workCost += calculateWorkCost('glue', area, d.L / 1000);
            workCost += calculateWorkCost('calibration', area);
+           workCost += calculateWorkCost('sanding', area);
+           totalGlueArea += area; // Собираем площадь для расчета клея
+           
+           if (dxfCache[d.name]) {
+              workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
+           }
         }
-        // Шлифовка для всех
-        workCost += calculateWorkCost('sanding', area);
 
-        // ЧПУ (упрощенно: если деталь есть в DXF, считаем что это 1 щит)
-        if (!isBar && dxfCache[d.name]) {
-           workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
-        }
+        // --- 4. ПРАВИЛА ЗАГЛУШЕК ---
+        if (catKey === 'treads' || catKey === 'welcome_steps') plugs20 += (productionPrices.rule_plug_step || 4);
+        if (catKey === 'handrail') plugs20 += (productionPrices.rule_plug_handrail || 2);
+        if (catKey === 'bottomrail') plugs20 += (productionPrices.rule_plug_bottomrail || 4);
+        if (catKey === 'stringers' || catKey === 'kosour') plugs20 += (productionPrices.rule_plug_stringer || 2);
 
         categoryWood += woodCost;
         categoryWork += workCost;
@@ -2143,21 +2181,44 @@ function calculateTechCard() {
       totalWoodCost += categoryWood;
       totalWorkCost += categoryWork;
 
-      console.log(`├ 📦 ${catKey.toUpperCase()}: Дерево: ${categoryWood.toFixed(2)} ₽ | Работа: ${categoryWork.toFixed(2)} ₽`);
+      if (categoryWood > 0 || categoryWork > 0) {
+        console.log(`├ 📦 ${catKey.toUpperCase()}: Дерево: ${categoryWood.toFixed(2)} ₽ | Работа: ${categoryWork.toFixed(2)} ₽`);
+      }
     }
   });
 
-  const totalCost = totalWoodCost + totalWorkCost;
+  // --- 5. СЧИТАЕМ ФУРНИТУРУ ---
+  bomData.items.forEach(d => {
+    if (d.type === 'Bolt') boltsCount++;
+  });
+  const totalBoltsCost = boltsCount * (productionPrices.furn_bolt1 || 50); // Условно берем 1-й тип
   
+  const totalPlugs20Cost = plugs20 * (productionPrices.furn_plug20 || 5);
+  const totalPlugs35Cost = plugs35 * (productionPrices.furn_plug35 || 15);
+  
+  const glueKg = totalGlueArea * 0.5; // 0.5 кг на 1 м²
+  const totalGlueCost = glueKg * (productionPrices.furn_glue || 400);
+
+  const totalHardwareCost = totalBoltsCost + totalPlugs20Cost + totalPlugs35Cost + totalGlueCost;
+
+  // --- 6. ИТОГИ ---
+  const totalCost = totalWoodCost + totalWorkCost + totalHardwareCost;
+  const markup = productionPrices.default_markup || 40;
+  const finalPrice = totalCost * (1 + markup / 100);
+
   console.log('%c─────────────────────────────────────────', 'color: #555');
   console.log(`%c💰 ВСЕГО ДЕРЕВО: ${totalWoodCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
   console.log(`%c🛠️ ВСЕГО РАБОТА: ${totalWorkCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
-  console.log(`%c🔥 ОБЩАЯ СЕБЕСТОИМОСТЬ: ${totalCost.toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold; font-size: 16px');
+  console.log(`%c🔩 ФУРНИТУРА (Болты: ${boltsCount}шт, Заглушки 20: ${plugs20}шт, 35: ${plugs35}шт, Клей: ${glueKg.toFixed(2)}кг): ${totalHardwareCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
+  console.log('%c─────────────────────────────────────────', 'color: #555');
+  console.log(`%c🔥 СЕБЕСТОИМОСТЬ: ${totalCost.toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold; font-size: 14px');
+  console.log(`%c📈 НАЦЕНКА (${markup}%): ${(finalPrice - totalCost).toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold');
+  console.log(`%c✅ ЦЕНА ДЛЯ КЛИЕНТА: ${finalPrice.toFixed(2)} ₽`, 'color: #4be0bc; font-weight: bold; font-size: 16px');
   
-  return { totalWoodCost, totalWorkCost, totalCost };
+  return { totalWoodCost, totalWorkCost, totalHardwareCost, totalCost, finalPrice };
 }
 
-// Выставляем функцию наружу, чтобы можно было тестировать из консоли
+// Выставляем функцию наружу
 window.calculateTechCard = calculateTechCard;
 
 
