@@ -1416,6 +1416,16 @@ document.getElementById('btnReset').addEventListener('click', () => {
   if (currentModel) fitCamera();
 });
 
+document.getElementById('btnAdminCost').addEventListener('click', () => {
+  const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
+  
+  if (pass === ADMIN_PASSWORD) {
+    showToast('Доступ разрешен! (Окно расчета скоро появится)', true);
+    // Здесь позже будет вызов: openAdminCostModal();
+  } else if (pass !== null) { // Если нажали "Отмена", ничего не делаем
+    showToast('Неверный пароль!', true);
+  }
+});
 document.getElementById('btnSavePos').addEventListener('click', () => {
   const p = camera.position;
   const t = controls.target;
