@@ -321,6 +321,66 @@
     </div>
   </div>
 </div>
+  <!-- ═══ Модальное окно: Настройки производства (Админ) ═══ -->
+<div class="modal-overlay" id="adminSettingsOverlay">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <div>
+        <span class="title">⚙️ Настройки производства</span>
+        <span class="subtitle">Внутренняя себестоимость</span>
+      </div>
+      <button class="modal-close" id="adminSettingsClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+      
+      <!-- Блок: Дерево -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🪵 Стоимость дерева (за м³)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Сосна: <input type="number" id="price_wood_pine" value="32000" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Бук: <input type="number" id="price_wood_beech" value="85000" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Ясень: <input type="number" id="price_wood_ash" value="126000" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Дуб: <input type="number" id="price_wood_oak" value="195000" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Коэффициенты -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">📐 Коэффициенты потерь</h4>
+        <div style="display: flex; gap: 20px;">
+          <label style="display:flex; align-items:center; gap:10px; font-size:13px;">Щиты: <input type="number" id="coef_waste_boards" value="1.25" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; align-items:center; gap:10px; font-size:13px;">Бруски: <input type="number" id="coef_waste_bars" value="1.15" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Работа (ЗП) -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🛠️ Стоимость работ (ЗП)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Склейка (до 2м) ₽/м²: <input type="number" id="work_glue_short" value="500" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Склейка (>2м) ₽/м²: <input type="number" id="work_glue_long" value="750" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Калибровка ₽/м²: <input type="number" id="work_calibration" value="200" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Шлифовка ₽/м²: <input type="number" id="work_sanding" value="300" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Покраска ₽/м²: <input type="number" id="work_painting" value="600" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: ЧПУ -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🖥️ ЧПУ (за 1 щит)</h4>
+        <div style="display: flex; gap: 20px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Создание УП: <input type="number" id="cnc_setup" value="150" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Работа станка: <input type="number" id="cnc_work" value="200" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" id="adminSettingsSave">💾 Сохранить</button>
+      <button class="btn" id="adminSettingsCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ Модальное окно: Бланк заказа ═══ -->
 <div class="modal-overlay" id="orderModalOverlay">
