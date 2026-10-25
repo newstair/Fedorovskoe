@@ -2573,11 +2573,23 @@ document.getElementById('orderShare').addEventListener('click', async () => {
    ═══════════════════════════════════════════════════════════════ */
 function makeModal(overlayId, closeBtnId, closeIconId, onOpen) {
   const overlay = document.getElementById(overlayId);
+  if (!overlay) {
+    console.warn('Не найдено окно с id:', overlayId);
+    return { openFn: () => {}, closeFn: () => {}, overlay: null };
+  }
+  
   const openFn  = () => { if (onOpen) onOpen(); overlay.classList.add('show'); };
   const closeFn = () => overlay.classList.remove('show');
 
-  if (closeBtnId)  document.getElementById(closeBtnId).addEventListener('click', closeFn);
-  if (closeIconId) document.getElementById(closeIconId).addEventListener('click', closeFn);
+  if (closeBtnId) {
+    const btn = document.getElementById(closeBtnId);
+    if (btn) btn.addEventListener('click', closeFn);
+  }
+  if (closeIconId) {
+    const icon = document.getElementById(closeIconId);
+    if (icon) icon.addEventListener('click', closeFn);
+  }
+  
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
   return { openFn, closeFn, overlay };
 }
