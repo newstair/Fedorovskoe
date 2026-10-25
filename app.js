@@ -1635,7 +1635,7 @@ function replaceBalustersInScene() {
   if (Math.abs(rawSize.x - maxDim) < 0.001) axisToRotate = 'x';
   else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
-  const pinRadius = 0.015; // Радиус хвостовика (30 мм)
+  const pinRadius = 0.013; // Радиус хвостовика (30 мм)
   
   const processedMeshes = new Set();
 
