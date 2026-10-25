@@ -2156,7 +2156,25 @@ function calculatePrice(km) {
    МОДАЛКА СМЕТЫ
    ═══════════════════════════════════════════════════════════════ */
 let currentKm = 0;
+function updateFloorsUI(xmlCount) {
+  const uiS2 = document.getElementById('group_ui_s2');
+  const uiR2 = document.getElementById('group_ui_r2');
+  const uiR3 = document.getElementById('group_ui_r3');
 
+  if (xmlCount <= 1) {
+    if (uiS2) uiS2.style.display = 'none';
+    if (uiR2) uiR2.style.display = 'none';
+    if (uiR3) uiR3.style.display = 'none';
+  } else if (xmlCount === 2) {
+    if (uiS2) uiS2.style.display = 'block';
+    if (uiR2) uiR2.style.display = 'block';
+    if (uiR3) uiR3.style.display = 'none';
+  } else {
+    if (uiS2) uiS2.style.display = 'block';
+    if (uiR2) uiR2.style.display = 'block';
+    if (uiR3) uiR3.style.display = 'block';
+  }
+}
 function buildPriceModal() {
   if (!bomGroups || !bomGroups.length) {
     priceBody.innerHTML = '<div class="price-empty">XML-файлы из Staircon не найдены.<br>Загрузите их в репозиторий.</div>';
