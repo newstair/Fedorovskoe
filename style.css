@@ -697,3 +697,19 @@
   font-size: 14px;
   color: #fff;
 }
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 9999;
+  display: none; /* По умолчанию скрыто */
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-overlay.show {
+  display: flex; /* Показывается, когда есть класс show */
+}
