@@ -1466,6 +1466,7 @@ function buildFinishPanel() {
 function applyFinish(categoryKey) {
   const choice = currentFinish[categoryKey];
 
+  // 1. Обновляем оригинальные группы
   for (const groupKey in elementGroups) {
     if (!groupKey.endsWith('_' + categoryKey)) continue;
     
@@ -1489,6 +1490,24 @@ function applyFinish(categoryKey) {
       });
     });
   }
+
+  // 2. Обновляем новые балясины
+  replacedBalustersGroup.children.forEach(wrapper => {
+    if (wrapper.userData.groupKey && wrapper.userData.groupKey.endsWith('_' + categoryKey)) {
+      wrapper.traverse(o => {
+        if (o.isMesh) {
+          if (!choice) {
+            if (o.userData.origMap !== undefined) o.material.map = o.userData.origMap;
+            if (o.userData.origColor !== undefined && o.material.color) o.material.color.setHex(o.userData.origColor);
+          } else {
+            o.material.map = getTexture(choice.file);
+            if (o.material.color) o.material.color.setHex(0xffffff);
+          }
+          o.material.needsUpdate = true;
+        }
+      });
+    }
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1610,18 +1629,14 @@ function replaceBalustersInScene() {
   const rawBox = new THREE.Box3().setFromObject(template);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
-   console.log("📏 Размер шаблона:", rawSize.x, rawSize.y, rawSize.z);
-  const templateHeight = maxDim; // Высота точеной части (например, 0.68 м)
+  const templateHeight = maxDim; 
   
-  // Определяем, как повернуть шаблон (чтобы он стоял вертикально)
   let axisToRotate = null;
   if (Math.abs(rawSize.x - maxDim) < 0.001) axisToRotate = 'x';
   else if (Math.abs(rawSize.z - maxDim) < 0.001) axisToRotate = 'z';
 
-  // Радиус хвостовиков (30 мм диаметр = 0.015 м)
- const pinRadius = 0.013; // 30 мм
+  const pinRadius = 0.015; // Радиус хвостовика (30 мм)
   
-  const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
   const processedMeshes = new Set();
 
   // 5. Клонируем и наращиваем
@@ -1644,6 +1659,10 @@ function replaceBalustersInScene() {
 
     if (oldSize.y < 0.1) return; 
 
+    // Берем материал со старой деревянной балясины
+    const origMat = Array.isArray(oldMesh.material) ? oldMesh.material[0] : oldMesh.material;
+    const baseMaterial = origMat ? origMat.clone() : new THREE.MeshStandardMaterial({ color: 0xffffff });
+
     const clone = template.clone(true);
     
     // --- 1. ПОВОРОТ ВЕРТИКАЛЬНО ---
@@ -1659,45 +1678,42 @@ function replaceBalustersInScene() {
     clone.position.z -= (currentBox.min.z + currentBox.max.z) / 2;
 
     // --- 3. СЧИТАЕМ ДЕЛЬТУ (РАЗНИЦУ ВЫСОТ) ---
-    // Нам нужна общая высота старой балясины. oldSize.y - это габаритный бокс.
     const totalHeight = oldSize.y;
-    const gap = totalHeight - templateHeight; // Насколько нужно нарастить
+    const gap = totalHeight - templateHeight; 
 
-    // --- 4. СОЗДАЕМ ОБЕРТКУ И ДОБАВЛЯЕМ ЦЕНТРАЛЬНУЮ ЧАСТЬ ---
+    // --- 4. СОЗДАЕМ ОБЕРТКУ ---
     const wrapper = new THREE.Group();
     wrapper.add(clone);
     wrapper.userData.groupKey = groupKey; 
 
-    // --- 5. ДОБАВЛЯЕМ ХВОСТОВИКИ (ТРУБКИ), ЕСЛИ НУЖНО ---
-    if (gap > 0.005) { // Если зазор больше 5 мм
+    // --- 5. НАРАЩИВАЕМ ХВОСТОВИКИ ---
+    if (gap > 0.005) { 
       const halfGap = gap / 2;
       
-      // Нижний хвостовик
       const bottomPinGeo = new THREE.CylinderGeometry(pinRadius, pinRadius, halfGap, 16);
-      const bottomPin = new THREE.Mesh(bottomPinGeo, sharedMaterial);
-      // Ставим его так, чтобы его верх совпадал с низом шаблона
+      const bottomPin = new THREE.Mesh(bottomPinGeo, baseMaterial.clone());
       bottomPin.position.y = -(templateHeight / 2) - (halfGap / 2);
       bottomPin.castShadow = true;
       bottomPin.receiveShadow = true;
       wrapper.add(bottomPin);
       
-      // Верхний хвостовик
       const topPinGeo = new THREE.CylinderGeometry(pinRadius, pinRadius, halfGap, 16);
-      const topPin = new THREE.Mesh(topPinGeo, sharedMaterial);
-      // Ставим его так, чтобы его низ совпадал с верхом шаблона
+      const topPin = new THREE.Mesh(topPinGeo, baseMaterial.clone());
       topPin.position.y = (templateHeight / 2) + (halfGap / 2);
       topPin.castShadow = true;
       topPin.receiveShadow = true;
       wrapper.add(topPin);
     }
 
-    // --- 6. СТАВИМ ВСЮ СБОРКУ В ЦЕНТР СТАРОЙ БАЛЯСИНЫ ---
+    // --- 6. СТАВИМ В ЦЕНТР ---
     wrapper.position.copy(oldCenter);
 
-    // Красим центральную часть (если она еще не покрашена)
-    clone.traverse((o) => {
+    // Применяем материал и сохраняем его исходное состояние для сброса
+    wrapper.traverse((o) => {
       if (o.isMesh) {
-        o.material = sharedMaterial;
+        o.material = baseMaterial.clone();
+        o.userData.origMap = o.material.map || null;
+        o.userData.origColor = o.material.color ? o.material.color.getHex() : 0xffffff;
         o.castShadow = true; 
         o.receiveShadow = true;
       }
@@ -1705,6 +1721,10 @@ function replaceBalustersInScene() {
 
     replacedBalustersGroup.add(wrapper);
   });
+
+  // Применяем текущую текстуру, если она была выбрана до клика
+  if (typeof applyFinish === 'function') applyFinish('baluster');
+  if (typeof applyColor === 'function') applyColor('baluster');
 
   isReplacing = false;
 }
@@ -1787,6 +1807,7 @@ function applyColor(categoryKey) {
   const colorObj = COLOR_PALETTE.find(c => c.key === colorKey);
   const colorHex = colorObj ? colorObj.hex : null;
 
+  // 1. Обновляем оригинальные группы
   for (const groupKey in elementGroups) {
     if (!groupKey.endsWith('_' + categoryKey)) continue;
     
@@ -1802,23 +1823,10 @@ function applyColor(categoryKey) {
             m.map = orig.map;
             if (m.color) m.color.setHex(orig.color);
           }
-          if (m.isMeshStandardMaterial) m.roughness = 0.8;
-          if (m.isMeshPhongMaterial) m.shininess = 10;
         } else {
           if (colorKey === 'clear') {
             if (orig && orig.map) m.map = orig.map;
             if (m.color) m.color.setHex(0xffffff);
-            if (m.isMeshStandardMaterial) {
-              m.roughness = 0.1;
-              m.metalness = 0.2;
-              m.envMapIntensity = 1.5;
-              m.roughnessMap = null;
-            }
-            if (m.isMeshPhongMaterial) {
-              m.shininess = 300;
-              m.specular = new THREE.Color(0xffffff);
-              m.specularMap = null;
-            }
           } else {
             if (colorKey === 'white' || colorKey === 'redwood' || colorKey === 'black') {
               m.map = null; 
@@ -1826,14 +1834,39 @@ function applyColor(categoryKey) {
               if (orig && orig.map) m.map = orig.map; 
             }
             if (m.color) m.color.set(colorHex);
-            if (m.isMeshStandardMaterial) m.roughness = 0.5;
-            if (m.isMeshPhongMaterial) m.shininess = 30;
           }
         }
         m.needsUpdate = true;
       });
     });
   }
+
+  // 2. Обновляем новые балясины
+  replacedBalustersGroup.children.forEach(wrapper => {
+    if (wrapper.userData.groupKey && wrapper.userData.groupKey.endsWith('_' + categoryKey)) {
+      wrapper.traverse(o => {
+        if (o.isMesh) {
+          if (!paintEnabled || !colorKey) {
+            if (o.userData.origMap !== undefined) o.material.map = o.userData.origMap;
+            if (o.userData.origColor !== undefined && o.material.color) o.material.color.setHex(o.userData.origColor);
+          } else {
+            if (colorKey === 'clear') {
+              if (o.userData.origMap) o.material.map = o.userData.origMap;
+              if (o.material.color) o.material.color.setHex(0xffffff);
+            } else {
+              if (colorKey === 'white' || colorKey === 'redwood' || colorKey === 'black') {
+                o.material.map = null;
+              } else {
+                if (o.userData.origMap) o.material.map = o.userData.origMap;
+              }
+              if (o.material.color) o.material.color.set(colorHex);
+            }
+          }
+          o.material.needsUpdate = true;
+        }
+      });
+    }
+  });
 }
 
 document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
