@@ -1521,15 +1521,7 @@ document.getElementById('btnAdminCost').addEventListener('click', () => {
 
 // Вызываем загрузку цен при старте (найди место в самом низу файла, где запускается приложение, и добавь туда вызов, или просто оставь этот вызов тут, он сработает после загрузки DOM)
 loadProductionPrices();
-document.getElementById('btnAdminCost').addEventListener('click', () => {
-  const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
-  
-  if (pass === ADMIN_PASSWORD) {
-    if (adminSettingsOverlay) adminSettingsOverlay.classList.add('show');
-  } else if (pass !== null) { 
-    showToast('Неверный пароль!', true);
-  }
-});
+
 document.getElementById('btnSavePos').addEventListener('click', () => {
   const p = camera.position;
   const t = controls.target;
