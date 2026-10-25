@@ -1416,13 +1416,29 @@ document.getElementById('btnReset').addEventListener('click', () => {
   if (currentModel) fitCamera();
 });
 
+// Создаем объект для управления модальным окном настроек
+const adminSettingsOverlay = document.getElementById('adminSettingsOverlay');
+const adminSettingsClose = document.getElementById('adminSettingsClose');
+const adminSettingsCloseBtn = document.getElementById('adminSettingsCloseBtn');
+
+function closeAdminSettings() {
+  if (adminSettingsOverlay) adminSettingsOverlay.classList.remove('show');
+}
+
+if (adminSettingsClose) adminSettingsClose.addEventListener('click', closeAdminSettings);
+if (adminSettingsCloseBtn) adminSettingsCloseBtn.addEventListener('click', closeAdminSettings);
+if (adminSettingsOverlay) {
+  adminSettingsOverlay.addEventListener('click', (e) => {
+    if (e.target === adminSettingsOverlay) closeAdminSettings();
+  });
+}
+
 document.getElementById('btnAdminCost').addEventListener('click', () => {
   const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
   
   if (pass === ADMIN_PASSWORD) {
-    showToast('Доступ разрешен! (Окно расчета скоро появится)', true);
-    // Здесь позже будет вызов: openAdminCostModal();
-  } else if (pass !== null) { // Если нажали "Отмена", ничего не делаем
+    if (adminSettingsOverlay) adminSettingsOverlay.classList.add('show');
+  } else if (pass !== null) { 
     showToast('Неверный пароль!', true);
   }
 });
