@@ -1519,7 +1519,16 @@ document.getElementById('btnAdminCost').addEventListener('click', () => {
     showToast('Неверный пароль!', true);
   }
 });
+// Обработчик кнопки Техкарты
+document.getElementById('btnTechCard').addEventListener('click', openTechCard);
 
+// Закрытие окна Техкарты
+const techCardOverlay = document.getElementById('techCardOverlay');
+document.getElementById('techCardClose').addEventListener('click', () => techCardOverlay.classList.remove('show'));
+document.getElementById('techCardCloseBtn').addEventListener('click', () => techCardOverlay.classList.remove('show'));
+techCardOverlay.addEventListener('click', (e) => {
+  if (e.target === techCardOverlay) techCardOverlay.classList.remove('show');
+});
 // Вызываем загрузку цен при старте
 loadProductionPrices();
 
@@ -2099,10 +2108,11 @@ function calculateTurningCost(item) {
 }
 
 // 6. Главная функция расчета
+
 function calculateTechCard() {
   if (!bomData || !bomData.items) {
     showToast('Нет данных XML для расчета', true);
-    return;
+    return null;
   }
 
   const floor = bomData.params.floorName ? parseInt(bomData.params.floorName.match(/(\d+)/)[1], 10) : 1;
@@ -2111,14 +2121,17 @@ function calculateTechCard() {
   let totalWoodCost = 0;
   let totalWorkCost = 0;
   let totalGlueArea = 0;
+  let plugs20 = 0, plugs35 = 0, boltsCount = 0;
   
-  // Счетчики для заглушек и болтов
-  let plugs20 = 0;
-  let plugs35 = 0;
-  let boltsCount = 0;
+  const tableData = []; // Сюда собираем данные для таблицы
 
-  console.log('%c📊 НАЧАЛО РАСЧЕТА ТЕХКАРТЫ', 'color: #ff9f43; font-weight: bold; font-size: 14px');
-  console.log(`Порода: ${getCurrentWoodKey().toUpperCase()} (коэф. работы: ${getWoodHardnessCoef()})`);
+  // Названия категорий для красивого вывода
+  const catNames = {
+    'treads': 'Ступени', 'risers': 'Подступенки', 'stringers': 'Тетивы',
+    'kosour': 'Косоуры', 'posts': 'Столбы', 'handrail': 'Поручни',
+    'baluster': 'Балясины', 'bottomrail': 'Подбалясники', 'covering': 'Панели',
+    'welcome_steps': 'Пригл. ступени', 'welcome_risers': 'Пригл. подступенки'
+  };
 
   ['stair', 'railing'].forEach(section => {
     for (const catKey in classified[section]) {
@@ -2130,45 +2143,34 @@ function calculateTechCard() {
 
       items.forEach(d => {
         const isBar = (catKey === 'baluster' || catKey === 'posts');
-        
-        // --- 1. ДЕРЕВО ---
         let woodCost = calculateWoodCost(d.T, d.W, d.L, isBar);
 
-        // --- 2. ПЛОЩАДЬ (для работ) ---
         let area = 0;
         if (dxfCache[d.name]) {
-          area = (dxfCache[d.name].area / 1e6) * 2; // верх и низ
+          area = (dxfCache[d.name].area / 1e6) * 2;
         } else {
-          // Если нет DXF, берем габариты (для столбов и балясин)
           const w = d.W > 0 ? d.W : (isBar ? 45 : 100);
           area = ((w / 1000) * (d.L / 1000)) * 2;
         }
 
-        // --- 3. РАБОТА ---
         let workCost = 0;
         if (catKey === 'baluster') {
            workCost += calculateTurningCost(d);
-           workCost += calculateWorkCost('sanding', area); // Балясины тоже шлифуются
+           workCost += calculateWorkCost('sanding', area);
         } else if (catKey === 'posts') {
-           // Столбы: склейка, калибровка, шлифовка, ЧПУ
            workCost += area * (productionPrices.work_post_glue || 500) * getWoodHardnessCoef();
            workCost += area * (productionPrices.work_post_calib || 200) * getWoodHardnessCoef();
            workCost += area * (productionPrices.work_post_sanding || 300) * getWoodHardnessCoef();
-           workCost += (productionPrices.work_post_cnc || 350) * getWoodHardnessCoef(); // ЧПУ за шт
-           plugs35 += (productionPrices.rule_plug_post || 4); // Заглушки на столб
+           workCost += (productionPrices.work_post_cnc || 350) * getWoodHardnessCoef();
+           plugs35 += (productionPrices.rule_plug_post || 4);
         } else {
-           // Щиты: склейка, калибровка, шлифовка
            workCost += calculateWorkCost('glue', area, d.L / 1000);
            workCost += calculateWorkCost('calibration', area);
            workCost += calculateWorkCost('sanding', area);
-           totalGlueArea += area; // Собираем площадь для расчета клея
-           
-           if (dxfCache[d.name]) {
-              workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
-           }
+           totalGlueArea += area;
+           if (dxfCache[d.name]) workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
         }
 
-        // --- 4. ПРАВИЛА ЗАГЛУШЕК ---
         if (catKey === 'treads' || catKey === 'welcome_steps') plugs20 += (productionPrices.rule_plug_step || 4);
         if (catKey === 'handrail') plugs20 += (productionPrices.rule_plug_handrail || 2);
         if (catKey === 'bottomrail') plugs20 += (productionPrices.rule_plug_bottomrail || 4);
@@ -2180,47 +2182,138 @@ function calculateTechCard() {
 
       totalWoodCost += categoryWood;
       totalWorkCost += categoryWork;
-
+      
+      // Сохраняем для таблицы
       if (categoryWood > 0 || categoryWork > 0) {
-        console.log(`├ 📦 ${catKey.toUpperCase()}: Дерево: ${categoryWood.toFixed(2)} ₽ | Работа: ${categoryWork.toFixed(2)} ₽`);
+        tableData.push({
+          name: catNames[catKey] || catKey,
+          count: items.length,
+          wood: categoryWood,
+          work: categoryWork
+        });
       }
     }
   });
 
-  // --- 5. СЧИТАЕМ ФУРНИТУРУ ---
-  bomData.items.forEach(d => {
-    if (d.type === 'Bolt') boltsCount++;
-  });
-  const totalBoltsCost = boltsCount * (productionPrices.furn_bolt1 || 50); // Условно берем 1-й тип
-  
+  // Фурнитура
+  bomData.items.forEach(d => { if (d.type === 'Bolt') boltsCount++; });
+  const totalBoltsCost = boltsCount * (productionPrices.furn_bolt1 || 50);
   const totalPlugs20Cost = plugs20 * (productionPrices.furn_plug20 || 5);
   const totalPlugs35Cost = plugs35 * (productionPrices.furn_plug35 || 15);
-  
-  const glueKg = totalGlueArea * 0.5; // 0.5 кг на 1 м²
+  const glueKg = totalGlueArea * 0.5;
   const totalGlueCost = glueKg * (productionPrices.furn_glue || 400);
-
   const totalHardwareCost = totalBoltsCost + totalPlugs20Cost + totalPlugs35Cost + totalGlueCost;
 
-  // --- 6. ИТОГИ ---
+  // Итоги
   const totalCost = totalWoodCost + totalWorkCost + totalHardwareCost;
   const markup = productionPrices.default_markup || 40;
-  const finalPrice = totalCost * (1 + markup / 100);
-
-  console.log('%c─────────────────────────────────────────', 'color: #555');
-  console.log(`%c💰 ВСЕГО ДЕРЕВО: ${totalWoodCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
-  console.log(`%c🛠️ ВСЕГО РАБОТА: ${totalWorkCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
-  console.log(`%c🔩 ФУРНИТУРА (Болты: ${boltsCount}шт, Заглушки 20: ${plugs20}шт, 35: ${plugs35}шт, Клей: ${glueKg.toFixed(2)}кг): ${totalHardwareCost.toFixed(2)} ₽`, 'color: #31d0aa; font-weight: bold');
-  console.log('%c─────────────────────────────────────────', 'color: #555');
-  console.log(`%c🔥 СЕБЕСТОИМОСТЬ: ${totalCost.toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold; font-size: 14px');
-  console.log(`%c📈 НАЦЕНКА (${markup}%): ${(finalPrice - totalCost).toFixed(2)} ₽`, 'color: #ff9f43; font-weight: bold');
-  console.log(`%c✅ ЦЕНА ДЛЯ КЛИЕНТА: ${finalPrice.toFixed(2)} ₽`, 'color: #4be0bc; font-weight: bold; font-size: 16px');
   
-  return { totalWoodCost, totalWorkCost, totalHardwareCost, totalCost, finalPrice };
+  return { 
+    tableData, 
+    totalWoodCost, 
+    totalWorkCost, 
+    totalHardwareCost, 
+    totalCost, 
+    markup,
+    hardwareDetails: { boltsCount, plugs20, plugs35, glueKg }
+  };
 }
+function openTechCard() {
+  const data = calculateTechCard();
+  if (!data) return;
 
-// Выставляем функцию наружу
-window.calculateTechCard = calculateTechCard;
+  const body = document.getElementById('techCardBody');
+  body.innerHTML = '';
 
+  // 1. Строим таблицу
+  let tableHTML = `
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #444; text-align: left;">
+          <th style="padding: 8px;">Наименование</th>
+          <th style="padding: 8px; text-align: center;">Кол-во</th>
+          <th style="padding: 8px; text-align: right;">Дерево (₽)</th>
+          <th style="padding: 8px; text-align: right;">Работа (₽)</th>
+          <th style="padding: 8px; text-align: right;">Итого (₽)</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  data.tableData.forEach(row => {
+    tableHTML += `
+      <tr style="border-bottom: 1px solid #333;">
+        <td style="padding: 8px;">${row.name}</td>
+        <td style="padding: 8px; text-align: center; color: #888;">${row.count} шт</td>
+        <td style="padding: 8px; text-align: right;">${row.wood.toFixed(2)}</td>
+        <td style="padding: 8px; text-align: right;">${row.work.toFixed(2)}</td>
+        <td style="padding: 8px; text-align: right; font-weight: bold; color: var(--accent);">${(row.wood + row.work).toFixed(2)}</td>
+      </tr>
+    `;
+  });
+  tableHTML += `</tbody></table>`;
+  
+  body.innerHTML = tableHTML;
+
+  // 2. Блок фурнитуры
+  const hw = data.hardwareDetails;
+  const hwHTML = `
+    <div style="background: #1a1d25; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+      <h4 style="color: #ff9f43; margin-bottom: 10px; font-size: 14px;">🔩 Фурнитура и расходники</h4>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span>Болты: <b>${hw.boltsCount} шт</b></span>
+        <span>Заглушки 20мм: <b>${hw.plugs20} шт</b></span>
+        <span>Заглушки 35мм: <b>${hw.plugs35} шт</b></span>
+        <span>Клей: <b>${hw.glueKg.toFixed(2)} кг</b></span>
+      </div>
+      <div style="text-align: right; font-weight: bold; color: var(--accent); margin-top: 10px;">
+        Стоимость фурнитуры: ${data.totalHardwareCost.toFixed(2)} ₽
+      </div>
+    </div>
+  `;
+  body.innerHTML += hwHTML;
+
+  // 3. Блок итогов и наценки
+  const totalsHTML = `
+    <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span>Дерево:</span> <b>${data.totalWoodCost.toFixed(2)} ₽</b>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span>Работа (ЗП):</span> <b>${data.totalWorkCost.toFixed(2)} ₽</b>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span>Фурнитура:</span> <b>${data.totalHardwareCost.toFixed(2)} ₽</b>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #555; font-size: 16px; color: #ff9f43;">
+        <span>СЕБЕСТОИМОСТЬ:</span> <b>${data.totalCost.toFixed(2)} ₽</b>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <span>Наценка (%):</span>
+        <input type="number" id="techCardMarkup" value="${data.markup}" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; text-align: right;">
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #31d0aa;">
+        <span>ЦЕНА ДЛЯ КЛИЕНТА:</span> <span id="techCardFinalPrice">${(data.totalCost * (1 + data.markup / 100)).toFixed(2)} ₽</span>
+      </div>
+    </div>
+  `;
+  body.innerHTML += totalsHTML;
+
+  // 4. Логика пересчета при смене наценки
+  const markupInput = document.getElementById('techCardMarkup');
+  const finalPriceEl = document.getElementById('techCardFinalPrice');
+  
+  markupInput.addEventListener('input', (e) => {
+    const newMarkup = parseFloat(e.target.value) || 0;
+    const newFinal = data.totalCost * (1 + newMarkup / 100);
+    finalPriceEl.textContent = newFinal.toFixed(2) + ' ₽';
+  });
+
+  // Показываем окно
+  document.getElementById('techCardOverlay').classList.add('show');
+}
 
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ BOM-ЭЛЕМЕНТОВ
