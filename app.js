@@ -1273,7 +1273,8 @@ document.getElementById('btnHumanRemove').addEventListener('click', () => {
   showToast('Человечек убран', true);
 });
 document.getElementById('floatHumanOff').addEventListener('click', () => {
-  humanGroup.visible = false;
+  // Просто выключаем режим (это скроет нижнюю панель), 
+  // но humanGroup.visible = false НЕ вызываем, поэтому человечек остается на месте.
   setHumanMode(false);
 });
 
