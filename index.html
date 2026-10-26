@@ -362,7 +362,7 @@
 
 <!-- ═══ Модальное окно: Настройки производства (Админ) ═══ -->
 <div class="modal-overlay" id="adminSettingsOverlay">
-  <div class="modal" style="max-width: 700px;">
+  <div class="modal" style="max-width: 750px;">
     <div class="modal-header">
       <div>
         <span class="title">⚙️ Настройки производства</span>
@@ -370,9 +370,95 @@
       </div>
       <button class="modal-close" id="adminSettingsClose" aria-label="Закрыть">✕</button>
     </div>
-    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;" id="adminSettingsBody">
-      <!-- Сюда вставь все блоки с input, которые мы делали (Дерево, Работы и т.д.) -->
-      <!-- Если ты их не удалял, они останутся внутри старого кода. Если удалил, скажи, я пришлю их заново. -->
+    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+      
+      <!-- Блок: Дерево -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🪵 Стоимость дерева (за м³, закупка)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Сосна: <input type="number" id="price_wood_pine" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Бук: <input type="number" id="price_wood_beech" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Ясень: <input type="number" id="price_wood_ash" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Дуб: <input type="number" id="price_wood_oak" style="width: 100px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Коэффициенты потерь и сложности -->
+      <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #444;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">📐 Коэффициенты</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Потери (Щиты): <input type="number" id="coef_waste_boards" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Потери (Бруски): <input type="number" id="coef_waste_bars" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+        <h5 style="color: #aaa; margin-bottom: 8px; font-size: 12px;">Сложность работ по породам:</h5>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Сосна: <input type="number" id="coef_hard_pine" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Бук: <input type="number" id="coef_hard_beech" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Ясень: <input type="number" id="coef_hard_ash" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Дуб: <input type="number" id="coef_hard_oak" step="0.01" style="width: 70px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Работы (ЗП) -->
+      <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #444;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🛠️ Базовые работы (ЗП для сосны)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Склейка (до 2м) ₽/м²: <input type="number" id="work_glue_short" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Склейка (>2м) ₽/м²: <input type="number" id="work_glue_long" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Калибровка ₽/м²: <input type="number" id="work_calibration" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Шлифовка (база) ₽/м²: <input type="number" id="base_sanding" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Покраска (работа) ₽/м²: <input type="number" id="work_painting" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: ЧПУ -->
+      <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #444;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🖥️ ЧПУ</h4>
+        <div style="display: flex; gap: 20px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Создание УП (₽/файл): <input type="number" id="cnc_setup" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Работа станка (₽/щит): <input type="number" id="cnc_work" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Фурнитура и расходники -->
+      <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #444;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🔩 Фурнитура и расходники</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Болт 1 (₽/шт): <input type="number" id="furn_bolt1" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Болт 2 (₽/шт): <input type="number" id="furn_bolt2" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Болт 3 (₽/шт): <input type="number" id="furn_bolt3" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Клей (₽/кг): <input type="number" id="furn_glue" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Заглушка 20мм (₽/шт): <input type="number" id="furn_plug20" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Заглушка 35мм (₽/шт): <input type="number" id="furn_plug35" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Правила заглушек -->
+      <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #444;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">📏 Нормы расхода заглушек (шт)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+          <label style="display:flex; flex-direction:column; gap: 4px; font-size:12px;">На Ступень <input type="number" id="rule_plug_step" style="width: 100%; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; flex-direction:column; gap: 4px; font-size:12px;">На Поручень <input type="number" id="rule_plug_handrail" style="width: 100%; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; flex-direction:column; gap: 4px; font-size:12px;">На Подбалясник <input type="number" id="rule_plug_bottomrail" style="width: 100%; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; flex-direction:column; gap: 4px; font-size:12px;">На Тетиву <input type="number" id="rule_plug_stringer" style="width: 100%; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; flex-direction:column; gap: 4px; font-size:12px;">На Столб <input type="number" id="rule_plug_post" style="width: 100%; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
+      <!-- Блок: Накладные и Наценка -->
+      <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #444;">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">🏭 Накладные и Наценка</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Аренда (₽/мес): <input type="number" id="overhead_rent" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Раб. дней в мес: <input type="number" id="overhead_days" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Свет (₽/кВт): <input type="number" id="overhead_elec" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Расход (кВт/день): <input type="number" id="overhead_elec_day" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Норма (м²/день): <input type="number" id="overhead_norm" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">Наценка (%): <input type="number" id="default_markup" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+          <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">УСН (%): <input type="number" id="tax_usn" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;"></label>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer" style="display: flex; justify-content: space-between; width: 100%;">
       <button class="btn" id="adminSettingsDownload">📥 Скачать JSON</button>
@@ -380,49 +466,6 @@
         <button class="btn primary" id="adminSettingsSave">💾 Сохранить</button>
         <button class="btn" id="adminSettingsCloseBtn">Закрыть</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ Модальное окно: Техкарта (Производство) ═══ -->
-<div class="modal-overlay" id="techCardOverlay">
-  <div class="modal" style="max-width: 800px;">
-    <div class="modal-header">
-      <div>
-        <span class="title">📊 Технологическая карта</span>
-        <span class="subtitle">Внутренний расчет себестоимости</span>
-      </div>
-      <button class="modal-close" id="techCardClose" aria-label="Закрыть">✕</button>
-    </div>
-    <div class="modal-body" id="techCardBody" style="max-height: 70vh; overflow-y: auto;">
-      <!-- Сюда код будет вставлять таблицу -->
-    </div>
-    <div class="modal-footer">
-      <button class="btn" id="techCardCloseBtn">Закрыть</button>
-    </div>
-  </div>
-</div>
-<input type="file" id="fileInput" multiple
-       accept=".dae,.xml,image/*,.jpg,.jpeg,.png,.gif,.bmp,.tga,.webp"
-       style="display:none">
-<!-- ═══════════════════ -->
-<!-- ═══ Модальное окно: Техкарта (Производство) ═══ -->
-<div class="modal-overlay" id="techCardOverlay">
-  <div class="modal" style="max-width: 800px;">
-    <div class="modal-header">
-      <div>
-        <span class="title">📊 Технологическая карта</span>
-        <span class="subtitle">Внутренний расчет себестоимости</span>
-      </div>
-      <button class="modal-close" id="techCardClose" aria-label="Закрыть">✕</button>
-    </div>
-    
-    <div class="modal-body" id="techCardBody" style="max-height: 70vh; overflow-y: auto;">
-      <!-- Сюда код будет вставлять таблицу -->
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn" id="techCardCloseBtn">Закрыть</button>
     </div>
   </div>
 </div>
