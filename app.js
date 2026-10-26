@@ -1423,9 +1423,8 @@ const adminSettingsCloseBtn = document.getElementById('adminSettingsCloseBtn');
 const adminSettingsSave = document.getElementById('adminSettingsSave');
 const adminSettingsDownload = document.getElementById('adminSettingsDownload');
 
-let productionPrices = {}; // Здесь будем хранить текущие цены
+let productionPrices = {}; 
 
-// Функция закрытия
 function closeAdminSettings() {
   if (adminSettingsOverlay) adminSettingsOverlay.classList.remove('show');
 }
@@ -1438,16 +1437,13 @@ if (adminSettingsOverlay) {
   });
 }
 
-// 1. Загрузка цен при старте
 async function loadProductionPrices() {
   try {
-    // Сначала пытаемся взять сохраненные данные из памяти браузера
     const saved = localStorage.getItem('production_prices');
     if (saved) {
       productionPrices = JSON.parse(saved);
       console.log('✔ Настройки загружены из памяти браузера');
     } else {
-      // Если в памяти нет, берем из файла
       const r = await fetch('production_prices.json', { cache: 'no-store' });
       if (r.ok) {
         productionPrices = await r.json();
@@ -1460,76 +1456,43 @@ async function loadProductionPrices() {
   updateAdminUI();
 }
 
-// 2. Заполнение полей ввода на основе загруженных цен
 function updateAdminUI() {
   for (const key in productionPrices) {
     const input = document.getElementById(key);
-    if (input) {
-      input.value = productionPrices[key];
-    }
+    if (input) input.value = productionPrices[key];
   }
 }
 
-// 3. Универсальная функция сбора данных со всех полей на экране
 function collectPricesFromUI() {
-  // Ищем ВСЕ поля с числами внутри окна админки
   const allInputs = document.querySelectorAll('#adminSettingsOverlay input[type="number"]');
-  
   allInputs.forEach(input => {
-    if (input.id) {
-      // Записываем значение по его id в наш объект
-      productionPrices[input.id] = parseFloat(input.value) || 0;
-    }
+    if (input.id) productionPrices[input.id] = parseFloat(input.value) || 0;
   });
 }
 
-// 4. Сохранение цен из полей ввода в память
 if (adminSettingsSave) {
   adminSettingsSave.addEventListener('click', () => {
-    collectPricesFromUI(); // Собираем ВСЕ поля с экрана
+    collectPricesFromUI();
     localStorage.setItem('production_prices', JSON.stringify(productionPrices));
-    showToast('Настройки успешно сохранены в браузере!', true);
+    showToast('Настройки успешно сохранены!', true);
     closeAdminSettings();
   });
 }
 
-// 5. Скачивание JSON файла для GitHub
 if (adminSettingsDownload) {
   adminSettingsDownload.addEventListener('click', () => {
-    collectPricesFromUI(); // Собираем ВСЕ поля с экрана
-    
+    collectPricesFromUI();
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(productionPrices, null, 2));
     const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href",     dataStr);
+    downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "production_prices.json");
-    document.body.appendChild(downloadAnchorNode); // required for firefox
+    document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
     showToast('Файл скачан. Замените его на GitHub!', true);
   });
 }
 
-// 6. Обработчик кнопки в меню (Пароль)
-document.getElementById('btnAdminCost').addEventListener('click', () => {
-  const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
-  
-  if (pass === ADMIN_PASSWORD) {
-    if (adminSettingsOverlay) adminSettingsOverlay.classList.add('show');
-  } else if (pass !== null) { 
-    showToast('Неверный пароль!', true);
-  }
-});
-// Обработчик кнопки Техкарты
-document.getElementById('btnTechCard').addEventListener('click', openTechCard);
-
-// Закрытие окна Техкарты
-const techCardOverlay = document.getElementById('techCardOverlay');
-document.getElementById('techCardClose').addEventListener('click', () => techCardOverlay.classList.remove('show'));
-document.getElementById('techCardCloseBtn').addEventListener('click', () => techCardOverlay.classList.remove('show'));
-techCardOverlay.addEventListener('click', (e) => {
-  if (e.target === techCardOverlay) techCardOverlay.classList.remove('show');
-});
-// Вызываем загрузку цен при старте
 loadProductionPrices();
 
 document.getElementById('btnSavePos').addEventListener('click', () => {
