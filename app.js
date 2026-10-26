@@ -2004,6 +2004,7 @@ document.getElementById('btnGlobalPaint').addEventListener('click', (e) => {
   showToast(paintEnabled ? 'Покраска включена' : 'Покраска отключена', true);
 });
 
+
    /* ═══════════════════════════════════════════════════════════════
    ДВИЖОК РАСЧЕТА (ТЕХКАРТА)
    ═══════════════════════════════════════════════════════════════ */
@@ -2195,8 +2196,120 @@ function calculateTechCard() {
 
   return { tableData };
 }
-
 window.calculateTechCard = calculateTechCard;
+function openTechCard() {
+  const data = calculateTechCard();
+  if (!data || !data.tableData || data.tableData.length === 0) {
+    showToast('Нет данных для Техкарты', true);
+    return;
+  }
+
+  const body = document.getElementById('techCardBody');
+  if (!body) return;
+  body.innerHTML = '';
+
+  const thStyle = 'border: 1px solid #444; padding: 6px; text-align: left; background: #222; font-weight: normal; color: #aaa;';
+  const tdStyle = 'border: 1px solid #444; padding: 6px;';
+
+  data.tableData.forEach(block => {
+    let woodRows = '';
+    block.itemsDetail.forEach(item => {
+      woodRows += `<tr>
+        <td style="${tdStyle}">${item.name}</td>
+        <td style="${tdStyle}">${item.type}</td>
+        <td style="${tdStyle}">${item.dims}</td>
+        <td style="${tdStyle}">${item.volume.toFixed(3)}</td>
+        <td style="${tdStyle}">${item.laths}</td>
+        <td style="${tdStyle} text-align:right;">${item.cost.toFixed(2)} ₽</td>
+      </tr>`;
+    });
+
+    const blockHTML = `
+      <div style="background: #1a1d25; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; overflow: hidden;">
+        
+        <div style="background: rgba(91, 140, 255, 0.1); padding: 10px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 16px; font-weight: bold; color: var(--accent);">📦 БЛОК: ${block.title.toUpperCase()} (${block.itemsCount} шт)</div>
+          <div style="font-size: 12px; background: #333; padding: 2px 8px; border-radius: 4px;">🔵 Материал: ${block.material}</div>
+        </div>
+
+        <div style="padding: 15px; font-size: 12px;">
+          
+          <div style="margin-bottom: 15px; font-weight:bold; color:#aaa;">(Подтаблица 1: Детали и Дерево)</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="${thStyle}">Щит / Деталь</th>
+                <th style="${thStyle}">Тип</th>
+                <th style="${thStyle}">Габариты (Т×Ш×Д)</th>
+                <th style="${thStyle}">Объем м³</th>
+                <th style="${thStyle}">Ламели</th>
+                <th style="${thStyle} text-align:right;">Стоимость</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${woodRows}
+            </tbody>
+          </table>
+
+          <div style="margin-bottom: 15px; font-weight:bold; color:#aaa;">(Подтаблица 2: Работы)</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="${thStyle}">Операция</th>
+                <th style="${thStyle}">Объем</th>
+                <th style="${thStyle} text-align:right;">Стоимость</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="${tdStyle}">Склейка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.glue.toFixed(2)} ₽</td></tr>
+              <tr><td style="${tdStyle}">Калибровка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.calib.toFixed(2)} ₽</td></tr>
+              <tr><td style="${tdStyle}">ЧПУ (УП + Резка)</td><td style="${tdStyle}">${block.itemsCount} шт</td><td style="${tdStyle} text-align:right;">${block.workDetails.cnc.toFixed(2)} ₽</td></tr>
+              <tr><td style="${tdStyle}">Шлифовка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.sanding.toFixed(2)} ₽</td></tr>
+            </tbody>
+          </table>
+
+          <div style="margin-bottom: 15px; font-weight:bold; color:#aaa;">(Подтаблица 3: Покраска)</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="${thStyle}">Компонент</th>
+                <th style="${thStyle}">Расход</th>
+                <th style="${thStyle} text-align:right;">Стоимость</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="${tdStyle}">Покраска (общая)</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.paintCost.toFixed(2)} ₽</td></tr>
+            </tbody>
+          </table>
+
+          <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border: 1px solid #444;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Итого дерево:</span> <b>${block.woodCost.toFixed(2)} ₽</b></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Итого работы:</span> <b>${block.workCost.toFixed(2)} ₽</b></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Итого покраска:</span> <b>${block.paintCost.toFixed(2)} ₽</b></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Накладные (доля):</span> <b>${block.overheadCost.toFixed(2)} ₽</b></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Фурнитура и расходники:</span> <b>${block.hardwareCost.toFixed(2)} ₽</b></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #ff9f43; font-size: 14px; font-weight:bold; border-top: 1px dashed #555; padding-top: 5px;">
+                <span>СЕБЕСТОИМОСТЬ:</span> <span>${block.cost.toFixed(2)} ₽</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px;">
+              <span>Наценка (${block.markup}%) / УСН:</span> <span>${(block.cost * block.markup / 100).toFixed(2)} / ${block.usn.toFixed(2)} ₽</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: #31d0aa; margin-top: 10px;">
+              <span>🔥 ЦЕНА В КАЛЬКУЛЯТОР:</span> <span>${block.finalPrice.toFixed(2)} ₽</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+    body.innerHTML += blockHTML;
+  });
+
+  const overlay = document.getElementById('techCardOverlay');
+  if (overlay) overlay.classList.add('show');
+}
+
+
 
 window.openTechCard = openTechCard;
 /* ═══════════════════════════════════════════════════════════════
