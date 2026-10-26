@@ -2094,7 +2094,7 @@ function calculateTechCard() {
     for (const catKey in classified[section]) {
       const items = classified[section][catKey];
       if (!items || !items.length) continue;
-      if (catKey !== 'treads') continue; // Пока тестируем только ступени
+      if (catKey !== 'treads') continue; // Пока только ступени
 
       let woodKey = 'pine';
       const finishChoice = currentFinish[catKey] || currentFinish.treads;
@@ -2111,22 +2111,28 @@ function calculateTechCard() {
       let totalWoodCost = 0;
       let totalArea = 0;
       let totalPlugs = 0;
-      let lathsList = {}; 
-      
-      // Детализация работ
       let workDetails = { glue: 0, calib: 0, cnc: 0, sanding: 0 };
+      let itemsDetail = []; // Сюда собираем инфу для таблицы Дерева
 
       items.forEach(d => {
         // 1. Дерево
         const volume = (d.T / 1000) * (d.W / 1000) * (d.L / 1000);
-        totalWoodCost += volume * wasteCoef * woodPrice;
+        const itemWoodCost = volume * wasteCoef * woodPrice;
+        totalWoodCost += itemWoodCost;
         
-        // 2. Ламели (Округление до 50мм с прибавлением 100мм)
+        // 2. Ламели
         const lathCount = Math.ceil(d.W / 45);
         const rawLength = d.L + 100;
-        const roundedLength = Math.ceil(rawLength / 50) * 50; // Округление вверх до 50
-        const key = roundedLength + 'мм';
-        lathsList[key] = (lathsList[key] || 0) + lathCount;
+        const roundedLength = Math.ceil(rawLength / 50) * 50; 
+        
+        itemsDetail.push({
+          name: d.name || 'Деталь',
+          type: 'Прямая', // Пока хардкод, потом возьмем из XML
+          dims: `${d.T}×${d.W}×${d.L}`,
+          volume: volume,
+          laths: `${lathCount} шт × ${roundedLength}мм`,
+          cost: itemWoodCost
+        });
 
         // 3. Площадь
         let area = 0;
@@ -2137,7 +2143,7 @@ function calculateTechCard() {
         }
         totalArea += area;
 
-        // 4. Работы (детализированно)
+        // 4. Работы
         const glueRate = d.L > 2000 ? (productionPrices.work_glue_long || 750) : (productionPrices.work_glue_short || 500);
         workDetails.glue += area * glueRate * woodCoef;
         workDetails.calib += area * (productionPrices.work_calibration || 200) * woodCoef;
@@ -2147,25 +2153,19 @@ function calculateTechCard() {
           workDetails.cnc += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
         }
 
-        // 5. Заглушки
         totalPlugs += (productionPrices.rule_plug_step || 4);
       });
 
       const totalWorkCost = workDetails.glue + workDetails.calib + workDetails.cnc + workDetails.sanding;
       
-      // 6. Накладные
       const days = totalArea / normM2PerDay;
       const overheadCost = days * costPerDay;
-      
-      // 7. Покраска
       const paintCost = totalArea * (productionPrices.work_painting || 600);
 
-      // 8. Расходники
       const glueCost = (totalArea * 0.5) * (productionPrices.furn_glue || 400);
       const plugsCost = totalPlugs * (productionPrices.furn_plug20 || 5);
       const hardwareCost = glueCost + plugsCost;
 
-      // 9. Итоги
       const cost = totalWoodCost + totalWorkCost + overheadCost + paintCost + hardwareCost;
       const markupSum = cost * (markup / 100);
       const usnSum = (cost + markupSum) * (usnRate / 100);
@@ -2174,9 +2174,10 @@ function calculateTechCard() {
       tableData.push({
         catKey: catKey,
         title: 'Ступени',
-        material: woodKey.toUpperCase(),
+        material: woodKey === 'oak' ? 'ДУБ' : (woodKey === 'beech' ? 'БУК' : (woodKey === 'ash' ? 'ЯСЕНЬ' : 'СОСНА')),
         itemsCount: items.length,
-        laths: lathsList,
+        itemsDetail: itemsDetail,
+        totalArea: totalArea,
         woodCost: totalWoodCost,
         workDetails: workDetails,
         workCost: totalWorkCost,
@@ -2196,93 +2197,6 @@ function calculateTechCard() {
 }
 
 window.calculateTechCard = calculateTechCard;
-
-window.openTechCard = openTechCard;
-function openTechCard() {
-  const data = calculateTechCard();
-  if (!data || !data.tableData || data.tableData.length === 0) {
-    showToast('Нет данных для Техкарты', true);
-    return;
-  }
-
-  const body = document.getElementById('techCardBody');
-  if (!body) return;
-  body.innerHTML = '';
-
-  data.tableData.forEach(block => {
-    let lathsHTML = '';
-    for (const len in block.laths) {
-      lathsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Ламели ${len}:</span> <b>${block.laths[len]} шт</b></div>`;
-    }
-
-    const blockHTML = `
-      <div style="background: #1a1d25; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; overflow: hidden;">
-        
-        <div style="background: rgba(91, 140, 255, 0.1); padding: 10px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-size: 16px; font-weight: bold; color: var(--accent);">📦 ${block.title} (${block.itemsCount} шт)</div>
-          <div style="font-size: 12px; background: #333; padding: 2px 8px; border-radius: 4px;">Материал: ${block.material}</div>
-        </div>
-
-        <div style="padding: 15px; font-size: 13px;">
-          
-          <!-- Дерево -->
-          <div style="margin-bottom: 15px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
-            <div style="color: #aaa; margin-bottom: 8px; font-weight:bold;">🪵 Заготовки (с припуском 100мм и шагом 50мм):</div>
-            ${lathsHTML}
-            <div style="display: flex; justify-content: space-between; margin-top: 8px; color: var(--accent);">
-              <span>Стоимость дерева:</span> <b>${block.woodCost.toFixed(2)} ₽</b>
-            </div>
-          </div>
-
-          <!-- Работы -->
-          <div style="margin-bottom: 15px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
-            <div style="color: #aaa; margin-bottom: 8px; font-weight:bold;">🛠️ Работы:</div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Склейка:</span> <span>${block.workDetails.glue.toFixed(2)} ₽</span></div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Калибровка:</span> <span>${block.workDetails.calib.toFixed(2)} ₽</span></div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>ЧПУ (УП + Резка):</span> <span>${block.workDetails.cnc.toFixed(2)} ₽</span></div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Шлифовка:</span> <span>${block.workDetails.sanding.toFixed(2)} ₽</span></div>
-          </div>
-
-          <!-- Покраска и расходники -->
-          <div style="margin-bottom: 15px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-              <span>🎨 Покраска (работа + материалы):</span> <b>${block.paintCost.toFixed(2)} ₽</b>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span>🔩 Фурнитура (Клей, Заглушки):</span> <b>${block.hardwareCost.toFixed(2)} ₽</b>
-            </div>
-          </div>
-
-          <!-- Накладные -->
-          <div style="display: flex; justify-content: space-between; margin-bottom: 15px; color: #ff9f43; font-size: 12px;">
-            <span>🏭 Накладные (Аренда, Свет за ${block.days.toFixed(1)} дн.):</span> <b>${block.overheadCost.toFixed(2)} ₽</b>
-          </div>
-
-          <!-- Итоги -->
-          <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-              <span>Себестоимость:</span> <b>${block.cost.toFixed(2)} ₽</b>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-              <span>Наценка (${block.markup}%):</span> <b>${(block.cost * block.markup / 100).toFixed(2)} ₽</b>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span>УСН:</span> <b>${block.usn.toFixed(2)} ₽</b>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: #31d0aa; border-top: 1px solid #444; padding-top: 10px;">
-              <span>ЦЕНА В КАЛЬКУЛЯТОР:</span> <span>${block.finalPrice.toFixed(2)} ₽</span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    `;
-    body.innerHTML += blockHTML;
-  });
-
-  const overlay = document.getElementById('techCardOverlay');
-  if (overlay) overlay.classList.add('show');
-}
 
 window.openTechCard = openTechCard;
 /* ═══════════════════════════════════════════════════════════════
