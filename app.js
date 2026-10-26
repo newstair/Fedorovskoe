@@ -2081,203 +2081,208 @@ function calculateTechCard() {
   const floor = bomData.params.floorName ? parseInt(bomData.params.floorName.match(/(\d+)/)[1], 10) : 1;
   const classified = classifyBOMItems(bomData.items, floor);
   
-  let totalWoodCost = 0;
-  let totalWorkCost = 0;
-  let totalGlueArea = 0;
-  let plugs20 = 0, plugs35 = 0, boltsCount = 0;
-  
-  const tableData = []; // Сюда собираем данные для таблицы
+  const tableData = [];
+  const markup = parseFloat(productionPrices.default_markup) || 40;
+  const usnRate = parseFloat(productionPrices.tax_usn) || 0;
 
-  // Названия категорий для красивого вывода
-  const catNames = {
-    'treads': 'Ступени', 'risers': 'Подступенки', 'stringers': 'Тетивы',
-    'kosour': 'Косоуры', 'posts': 'Столбы', 'handrail': 'Поручни',
-    'baluster': 'Балясины', 'bottomrail': 'Подбалясники', 'covering': 'Панели',
-    'welcome_steps': 'Пригл. ступени', 'welcome_risers': 'Пригл. подступенки'
-  };
+  // Считаем стоимость 1 дня накладных (Аренда + Свет)
+  const rentPerDay = (parseFloat(productionPrices.overhead_rent) || 0) / (parseFloat(productionPrices.overhead_days) || 22);
+  const elecPerDay = (parseFloat(productionPrices.overhead_elec) || 0) * (parseFloat(productionPrices.overhead_elec_day) || 0);
+  const costPerDay = rentPerDay + elecPerDay;
 
+  // Норма выработки (пока только для щитов)
+  const normM2PerDay = parseFloat(productionPrices.overhead_norm) || 5; 
+
+  // Проходим по всем категориям (пока фокусируемся на 'treads')
   ['stair', 'railing'].forEach(section => {
     for (const catKey in classified[section]) {
       const items = classified[section][catKey];
       if (!items || !items.length) continue;
 
-      let categoryWood = 0;
-      let categoryWork = 0;
+      // Пока считаем только ступени для теста. Остальные будут по аналогии.
+      if (catKey !== 'treads') continue;
+
+      // Определяем материал и цвет для этого блока (из главного меню)
+      let woodKey = 'pine';
+      const finishChoice = currentFinish[catKey] || currentFinish.treads;
+      if (finishChoice && finishChoice.file) {
+        if (finishChoice.file.includes('oak')) woodKey = 'oak';
+        else if (finishChoice.file.includes('ash')) woodKey = 'ash';
+        else if (finishChoice.file.includes('bok')) woodKey = 'beech';
+      }
+      
+      const woodCoef = parseFloat(productionPrices['coef_hard_' + woodKey]) || 1.0;
+      const woodPrice = parseFloat(productionPrices['price_wood_' + woodKey]) || 32000;
+      const wasteCoef = parseFloat(productionPrices.coef_waste_boards) || 1.25;
+
+      let totalWoodCost = 0;
+      let totalWorkCost = 0;
+      let totalArea = 0;
+      let totalPlugs = 0;
+      let lathsList = {}; // Для группировки ламелей
 
       items.forEach(d => {
-        const isBar = (catKey === 'baluster' || catKey === 'posts');
-        let woodCost = calculateWoodCost(d.T, d.W, d.L, isBar);
+        // 1. Дерево
+        const volume = (d.T / 1000) * (d.W / 1000) * (d.L / 1000);
+        totalWoodCost += volume * wasteCoef * woodPrice;
+        
+        // 2. Ламели (Ширина / 45)
+        const lathCount = Math.ceil(d.W / 45);
+        const lathLength = d.L + 100; // Припуск 100мм
+        const key = lathLength + 'мм';
+        lathsList[key] = (lathsList[key] || 0) + lathCount;
 
+        // 3. Площадь для работ (из DXF или габаритов)
         let area = 0;
         if (dxfCache[d.name]) {
           area = (dxfCache[d.name].area / 1e6) * 2;
         } else {
-          const w = d.W > 0 ? d.W : (isBar ? 45 : 100);
-          area = ((w / 1000) * (d.L / 1000)) * 2;
+          area = ((d.W / 1000) * (d.L / 1000)) * 2;
         }
+        totalArea += area;
 
+        // 4. Работы
         let workCost = 0;
-        if (catKey === 'baluster') {
-           workCost += calculateTurningCost(d);
-           workCost += calculateWorkCost('sanding', area);
-        } else if (catKey === 'posts') {
-           workCost += area * (productionPrices.work_post_glue || 500) * getWoodHardnessCoef();
-           workCost += area * (productionPrices.work_post_calib || 200) * getWoodHardnessCoef();
-           workCost += area * (productionPrices.work_post_sanding || 300) * getWoodHardnessCoef();
-           workCost += (productionPrices.work_post_cnc || 350) * getWoodHardnessCoef();
-           plugs35 += (productionPrices.rule_plug_post || 4);
-        } else {
-           workCost += calculateWorkCost('glue', area, d.L / 1000);
-           workCost += calculateWorkCost('calibration', area);
-           workCost += calculateWorkCost('sanding', area);
-           totalGlueArea += area;
-           if (dxfCache[d.name]) workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
+        const glueRate = d.L > 2000 ? (productionPrices.work_glue_long || 750) : (productionPrices.work_glue_short || 500);
+        workCost += area * glueRate * woodCoef; // Склейка
+        workCost += area * (productionPrices.work_calibration || 200) * woodCoef; // Калибровка
+        workCost += area * (productionPrices.base_sanding || 300) * woodCoef; // Шлифовка
+        
+        // ЧПУ
+        if (dxfCache[d.name]) {
+          workCost += (productionPrices.cnc_setup || 150) + (productionPrices.cnc_work || 200);
         }
+        totalWorkCost += workCost;
 
-        if (catKey === 'treads' || catKey === 'welcome_steps') plugs20 += (productionPrices.rule_plug_step || 4);
-        if (catKey === 'handrail') plugs20 += (productionPrices.rule_plug_handrail || 2);
-        if (catKey === 'bottomrail') plugs20 += (productionPrices.rule_plug_bottomrail || 4);
-        if (catKey === 'stringers' || catKey === 'kosour') plugs20 += (productionPrices.rule_plug_stringer || 2);
-
-        categoryWood += woodCost;
-        categoryWork += workCost;
+        // 5. Заглушки
+        totalPlugs += (productionPrices.rule_plug_step || 4);
       });
 
-      totalWoodCost += categoryWood;
-      totalWorkCost += categoryWork;
+      // 6. Накладные (дни = Площадь / Норма)
+      const days = totalArea / normM2PerDay;
+      const overheadCost = days * costPerDay;
       
-      // Сохраняем для таблицы
-      if (categoryWood > 0 || categoryWork > 0) {
-        tableData.push({
-          name: catNames[catKey] || catKey,
-          count: items.length,
-          wood: categoryWood,
-          work: categoryWork
-        });
-      }
+      // 7. Покраска (пока усредненная, по площади)
+      const paintCost = totalArea * (productionPrices.work_painting || 600);
+
+      // 8. Расходники (Клей + Заглушки)
+      const glueCost = (totalArea * 0.5) * (productionPrices.furn_glue || 400);
+      const plugsCost = totalPlugs * (productionPrices.furn_plug20 || 5);
+      const hardwareCost = glueCost + plugsCost;
+
+      // 9. Итоги по блоку
+      const cost = totalWoodCost + totalWorkCost + overheadCost + paintCost + hardwareCost;
+      const markupSum = cost * (markup / 100);
+      const usnSum = (cost + markupSum) * (usnRate / 100);
+      const finalPrice = cost + markupSum + usnSum;
+
+      // Формируем данные для интерфейса
+      tableData.push({
+        catKey: catKey,
+        title: 'Ступени',
+        material: woodKey.toUpperCase(),
+        itemsCount: items.length,
+        laths: lathsList,
+        woodCost: totalWoodCost,
+        workCost: totalWorkCost,
+        overheadCost: overheadCost,
+        paintCost: paintCost,
+        hardwareCost: hardwareCost,
+        cost: cost,
+        markup: markup,
+        usn: usnSum,
+        finalPrice: finalPrice,
+        days: days
+      });
     }
   });
 
-  // Фурнитура
-  bomData.items.forEach(d => { if (d.type === 'Bolt') boltsCount++; });
-  const totalBoltsCost = boltsCount * (productionPrices.furn_bolt1 || 50);
-  const totalPlugs20Cost = plugs20 * (productionPrices.furn_plug20 || 5);
-  const totalPlugs35Cost = plugs35 * (productionPrices.furn_plug35 || 15);
-  const glueKg = totalGlueArea * 0.5;
-  const totalGlueCost = glueKg * (productionPrices.furn_glue || 400);
-  const totalHardwareCost = totalBoltsCost + totalPlugs20Cost + totalPlugs35Cost + totalGlueCost;
-
-  // Итоги
-  const totalCost = totalWoodCost + totalWorkCost + totalHardwareCost;
-  const markup = productionPrices.default_markup || 40;
-  
-  return { 
-    tableData, 
-    totalWoodCost, 
-    totalWorkCost, 
-    totalHardwareCost, 
-    totalCost, 
-    markup,
-    hardwareDetails: { boltsCount, plugs20, plugs35, glueKg }
-  };
+  return { tableData, globalMarkup: markup, globalUSN: usnRate };
 }
-window.calculateTechCard = calculateTechCard; 
+
+window.calculateTechCard = calculateTechCard;
 function openTechCard() {
   const data = calculateTechCard();
-  if (!data) return;
+  if (!data || !data.tableData || data.tableData.length === 0) {
+    showToast('Нет данных для Техкарты', true);
+    return;
+  }
 
   const body = document.getElementById('techCardBody');
+  if (!body) return;
   body.innerHTML = '';
 
-  // 1. Строим таблицу
-  let tableHTML = `
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px;">
-      <thead>
-        <tr style="border-bottom: 2px solid #444; text-align: left;">
-          <th style="padding: 8px;">Наименование</th>
-          <th style="padding: 8px; text-align: center;">Кол-во</th>
-          <th style="padding: 8px; text-align: right;">Дерево (₽)</th>
-          <th style="padding: 8px; text-align: right;">Работа (₽)</th>
-          <th style="padding: 8px; text-align: right;">Итого (₽)</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+  data.tableData.forEach(block => {
+    // Формируем список ламелей
+    let lathsHTML = '';
+    for (const len in block.laths) {
+      lathsHTML += `<div>Ламели ${len}: <b>${block.laths[len]} шт</b></div>`;
+    }
 
-  data.tableData.forEach(row => {
-    tableHTML += `
-      <tr style="border-bottom: 1px solid #333;">
-        <td style="padding: 8px;">${row.name}</td>
-        <td style="padding: 8px; text-align: center; color: #888;">${row.count} шт</td>
-        <td style="padding: 8px; text-align: right;">${row.wood.toFixed(2)}</td>
-        <td style="padding: 8px; text-align: right;">${row.work.toFixed(2)}</td>
-        <td style="padding: 8px; text-align: right; font-weight: bold; color: var(--accent);">${(row.wood + row.work).toFixed(2)}</td>
-      </tr>
+    const blockHTML = `
+      <div style="background: #1a1d25; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; overflow: hidden;">
+        
+        <!-- Заголовок блока -->
+        <div style="background: rgba(91, 140, 255, 0.1); padding: 10px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 16px; font-weight: bold; color: var(--accent);">📦 ${block.title} (${block.itemsCount} шт)</div>
+          <div style="font-size: 12px; background: #333; padding: 2px 8px; border-radius: 4px;">Материал: ${block.material}</div>
+        </div>
+
+        <div style="padding: 15px; font-size: 13px;">
+          
+          <!-- Дерево -->
+          <div style="margin-bottom: 15px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
+            <div style="color: #888; margin-bottom: 5px;">🪵 Заготовки:</div>
+            ${lathsHTML}
+            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+              <span>Стоимость дерева:</span> <b>${block.woodCost.toFixed(2)} ₽</b>
+            </div>
+          </div>
+
+          <!-- Работы -->
+          <div style="margin-bottom: 15px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>Работы (Склейка, Калибровка, ЧПУ, Шлифовка):</span> <b>${block.workCost.toFixed(2)} ₽</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>Покраска (материалы и работа):</span> <b>${block.paintCost.toFixed(2)} ₽</b>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Фурнитура (Клей, Заглушки):</span> <b>${block.hardwareCost.toFixed(2)} ₽</b>
+            </div>
+          </div>
+
+          <!-- Накладные -->
+          <div style="display: flex; justify-content: space-between; margin-bottom: 15px; color: #ff9f43; font-size: 12px;">
+            <span>Накладные (Аренда, Свет за ${block.days.toFixed(1)} дн.):</span> <b>${block.overheadCost.toFixed(2)} ₽</b>
+          </div>
+
+          <!-- Итоги -->
+          <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>Себестоимость:</span> <b>${block.cost.toFixed(2)} ₽</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>Наценка (${block.markup}%):</span> <b>${(block.cost * block.markup / 100).toFixed(2)} ₽</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+              <span>УСН:</span> <b>${block.usn.toFixed(2)} ₽</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: #31d0aa; border-top: 1px solid #444; padding-top: 10px;">
+              <span>ЦЕНА В КАЛЬКУЛЯТОР:</span> <span>${block.finalPrice.toFixed(2)} ₽</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
     `;
-  });
-  tableHTML += `</tbody></table>`;
-  
-  body.innerHTML = tableHTML;
-
-  // 2. Блок фурнитуры
-  const hw = data.hardwareDetails;
-  const hwHTML = `
-    <div style="background: #1a1d25; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
-      <h4 style="color: #ff9f43; margin-bottom: 10px; font-size: 14px;">🔩 Фурнитура и расходники</h4>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <span>Болты: <b>${hw.boltsCount} шт</b></span>
-        <span>Заглушки 20мм: <b>${hw.plugs20} шт</b></span>
-        <span>Заглушки 35мм: <b>${hw.plugs35} шт</b></span>
-        <span>Клей: <b>${hw.glueKg.toFixed(2)} кг</b></span>
-      </div>
-      <div style="text-align: right; font-weight: bold; color: var(--accent); margin-top: 10px;">
-        Стоимость фурнитуры: ${data.totalHardwareCost.toFixed(2)} ₽
-      </div>
-    </div>
-  `;
-  body.innerHTML += hwHTML;
-
-  // 3. Блок итогов и наценки
-  const totalsHTML = `
-    <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
-      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-        <span>Дерево:</span> <b>${data.totalWoodCost.toFixed(2)} ₽</b>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-        <span>Работа (ЗП):</span> <b>${data.totalWorkCost.toFixed(2)} ₽</b>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-        <span>Фурнитура:</span> <b>${data.totalHardwareCost.toFixed(2)} ₽</b>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #555; font-size: 16px; color: #ff9f43;">
-        <span>СЕБЕСТОИМОСТЬ:</span> <b>${data.totalCost.toFixed(2)} ₽</b>
-      </div>
-      
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <span>Наценка (%):</span>
-        <input type="number" id="techCardMarkup" value="${data.markup}" style="width: 80px; padding: 4px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; text-align: right;">
-      </div>
-      
-      <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #31d0aa;">
-        <span>ЦЕНА ДЛЯ КЛИЕНТА:</span> <span id="techCardFinalPrice">${(data.totalCost * (1 + data.markup / 100)).toFixed(2)} ₽</span>
-      </div>
-    </div>
-  `;
-  body.innerHTML += totalsHTML;
-
-  // 4. Логика пересчета при смене наценки
-  const markupInput = document.getElementById('techCardMarkup');
-  const finalPriceEl = document.getElementById('techCardFinalPrice');
-  
-  markupInput.addEventListener('input', (e) => {
-    const newMarkup = parseFloat(e.target.value) || 0;
-    const newFinal = data.totalCost * (1 + newMarkup / 100);
-    finalPriceEl.textContent = newFinal.toFixed(2) + ' ₽';
+    body.innerHTML += blockHTML;
   });
 
-  // Показываем окно
-  document.getElementById('techCardOverlay').classList.add('show');
+  const overlay = document.getElementById('techCardOverlay');
+  if (overlay) overlay.classList.add('show');
 }
+
 window.openTechCard = openTechCard;
 /* ═══════════════════════════════════════════════════════════════
    КЛАССИФИКАЦИЯ BOM-ЭЛЕМЕНТОВ
