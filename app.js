@@ -3115,3 +3115,30 @@ console.log('%c◈ 3D Viewer готов', 'color:#5b8cff;font-weight:bold;font-s
 console.log('Линейка — M. Человечек — H.');
 window.elementGroups = elementGroups;
 window.scene = scene;
+// ═══ ПРИВЯЗКА КНОПОК МЕНЮ ═══
+
+// 1. Кнопка "Настройки (Админ)"
+const btnAdmin = document.getElementById('btnAdminCost');
+if (btnAdmin) {
+  btnAdmin.addEventListener('click', () => {
+    const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
+    if (pass === ADMIN_PASSWORD) {
+      const overlay = document.getElementById('adminSettingsOverlay');
+      if (overlay) overlay.classList.add('show');
+    } else if (pass !== null) { 
+      showToast('Неверный пароль!', true);
+    }
+  });
+}
+
+// 2. Кнопка "Техкарта (Производство)"
+const btnTech = document.getElementById('btnTechCard');
+if (btnTech) {
+  btnTech.addEventListener('click', () => {
+    if (typeof openTechCard === 'function') {
+      openTechCard();
+    } else {
+      showToast('Ошибка: функция Техкарты не найдена', true);
+    }
+  });
+}
