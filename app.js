@@ -3142,3 +3142,25 @@ if (btnTech) {
     }
   });
 }
+// ═══ ЗАКРЫТИЕ ОКНА ТЕХКАРТЫ ═══
+const techCardOverlay = document.getElementById('techCardOverlay');
+const techCardClose = document.getElementById('techCardClose');
+const techCardCloseBtn = document.getElementById('techCardCloseBtn');
+
+if (techCardClose) {
+  techCardClose.addEventListener('click', () => {
+    if (techCardOverlay) techCardOverlay.classList.remove('show');
+  });
+}
+if (techCardCloseBtn) {
+  techCardCloseBtn.addEventListener('click', () => {
+    if (techCardOverlay) techCardOverlay.classList.remove('show');
+  });
+}
+if (techCardOverlay) {
+  techCardOverlay.addEventListener('click', (e) => {
+    if (e.target === techCardOverlay) {
+      techCardOverlay.classList.remove('show');
+    }
+  });
+}
