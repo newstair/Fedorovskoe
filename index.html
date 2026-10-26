@@ -480,6 +480,26 @@
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
   }
 }
+  <!-- ═══ Модальное окно: Техкарта (Производство) ═══ -->
+<div class="modal-overlay" id="techCardOverlay">
+  <div class="modal" style="max-width: 800px;">
+    <div class="modal-header">
+      <div>
+        <span class="title">📊 Технологическая карта</span>
+        <span class="subtitle">Внутренний расчет себестоимости</span>
+      </div>
+      <button class="modal-close" id="techCardClose" aria-label="Закрыть">✕</button>
+    </div>
+    
+    <div class="modal-body" id="techCardBody" style="max-height: 70vh; overflow-y: auto;">
+      <!-- Сюда код будет вставлять таблицу -->
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" id="techCardCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
 </script>
 
 <script type="module" src="app.js"></script>
