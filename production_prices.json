@@ -1,62 +1,150 @@
 {
-  "price_wood_pine": 32000,
-  "price_wood_beech": 85000,
-  "price_wood_ash": 126000,
-  "price_wood_oak": 195000,
-  "coef_waste_boards": 1.25,
-  "coef_waste_bars": 1.15,
-  "work_glue_short": 1300,
-  "work_glue_long": 1800,
-  "work_calibration": 200,
-  "work_painting": 550,
-  "work_sanding_pine": 300,
-  "work_sanding_beech": 400,
-  "work_sanding_ash": 450,
-  "work_sanding_oak": 500,
-  "cnc_setup": 200,
-  "cnc_work": 250,
-  "work_post_glue": 1200,
-  "work_post_calib": 200,
-  "work_post_sanding": 550,
-  "work_post_cnc": 650,
-  "work_turn_b1_680": 150,
-  "work_turn_b1_860": 170,
-  "work_turn_b1_930": 190,
-  "work_turn_b2": 140,
-  "work_turn_b3": 140,
-  "work_turn_b4": 150,
-  "work_turn_b5": 170,
-  "work_turn_ball1": 250,
-  "work_turn_ball2": 260,
-  "work_turn_ball3": 400,
-  "work_turn_post_turned": 500,
-  "work_turn_post_short": 650,
-  "work_turn_post_long": 900,
-  "coef_hard_pine": 1,
-  "coef_hard_beech": 1.7,
-  "coef_hard_ash": 1.5,
-  "coef_hard_oak": 1.9,
-  "base_sanding": 0,
-  "work_turn_b1": 130,
-  "coef_len_680": 1,
-  "coef_len_860": 1.3,
-  "coef_len_930": 1.6,
-  "furn_bolt1": 8,
-  "furn_bolt2": 28,
-  "furn_bolt3": 19,
-  "furn_glue": 600,
-  "furn_plug20": 12,
-  "furn_plug35": 26,
-  "rule_plug_step": 4,
-  "rule_plug_handrail": 2,
-  "rule_plug_bottomrail": 4,
-  "rule_plug_stringer": 0,
-  "rule_plug_post": 3,
-  "default_markup": 40,
-  "overhead_rent": 130000,
-  "overhead_days": 22,
-  "overhead_elec": 17,
-  "overhead_elec_day": 500,
-  "overhead_norm": 80,
-  "tax_usn": 6
+  "woods": {
+    "pine": {
+      "name": "Сосна",
+      "pricePerM3": 15000,
+      "workCoef": 1.0
+    },
+    "oak": {
+      "name": "Дуб",
+      "pricePerM3": 70000,
+      "workCoef": 1.5
+    },
+    "ash": {
+      "name": "Ясень",
+      "pricePerM3": 55000,
+      "workCoef": 1.2
+    }
+  },
+  
+  "detail_coefficients": {
+    "Step_straight": {
+      "name": "Ступень прямая",
+      "coef": 1.0
+    },
+    "Step_winder": {
+      "name": "Ступень забежная",
+      "coef": 1.2
+    },
+    "String": {
+      "name": "Тетива",
+      "coef": 1.3
+    },
+    "Riser": {
+      "name": "Подступенок",
+      "coef": 1.0
+    },
+    "Newel": {
+      "name": "Столб",
+      "coef": 1.1
+    },
+    "Handrail": {
+      "name": "Поручень",
+      "coef": 1.2
+    },
+    "Baluster": {
+      "name": "Балясина",
+      "coef": 1.0
+    }
+  },
+
+  "works": {
+    "glue": {
+      "name": "Склейка",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 500
+    },
+    "calibration": {
+      "name": "Калибровка",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 300
+    },
+    "cnc_programming": {
+      "name": "Создание УП (ЧПУ)",
+      "unit": "pcs",
+      "base": 1000,
+      "perUnit": 50
+    },
+    "cnc_cutting": {
+      "name": "ЧПУ Резка (Станок)",
+      "unit": "pcs",
+      "base": 0,
+      "perUnit": 300
+    },
+    "sanding": {
+      "name": "Шлифовка",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 450
+    },
+    "mounting": {
+      "name": "Монтаж",
+      "unit": "m2",
+      "base": 5000,
+      "perUnit": 800
+    }
+  },
+
+  "paint_inventory": {
+    "primer_clear": { "name": "Грунт прозрачный", "unit": "ml", "price": 0.4 },
+    "primer_white": { "name": "Грунт белый", "unit": "ml", "price": 0.5 },
+    "hardener_clear": { "name": "Отвердитель для грунта", "unit": "ml", "price": 0.6 },
+    "lacquer": { "name": "Лак бесцветный", "unit": "ml", "price": 0.8 },
+    "hardener_lacquer": { "name": "Отвердитель для лака", "unit": "ml", "price": 0.7 },
+    "thinner_646": { "name": "Растворитель 646", "unit": "ml", "price": 0.2 },
+    "thinner_420": { "name": "Растворитель 420", "unit": "ml", "price": 0.25 },
+    "toner_white": { "name": "Тон белый", "unit": "ml", "price": 0.9 },
+    "colorant": { "name": "Колер (Краситель)", "unit": "ml", "price": 1.2 }
+  },
+
+  "paint_recipes": {
+    "clear": {
+      "name": "Бесцветный",
+      "texture": "texture_clear.jpg",
+      "layers": [
+        { "component": "primer_clear", "volume": 1000, "consumption": 250 },
+        { "component": "hardener_clear", "volume": 450, "consumption": 112.5 },
+        { "component": "thinner_420", "volume": 350, "consumption": 87.5 },
+        { "component": "lacquer", "volume": 1000, "consumption": 200 },
+        { "component": "hardener_lacquer", "volume": 450, "consumption": 90 },
+        { "component": "thinner_420", "volume": 250, "consumption": 50 }
+      ]
+    },
+    "white": {
+      "name": "Белый укрывной",
+      "texture": "texture_white.jpg",
+      "layers": [
+        { "component": "primer_white", "volume": 1000, "consumption": 250 },
+        { "component": "hardener_clear", "volume": 450, "consumption": 112.5 },
+        { "component": "thinner_420", "volume": 350, "consumption": 87.5 },
+        { "component": "lacquer", "volume": 1000, "consumption": 200 },
+        { "component": "hardener_lacquer", "volume": 450, "consumption": 90 },
+        { "component": "thinner_420", "volume": 250, "consumption": 50 },
+        { "component": "toner_white", "volume": 250, "consumption": 50 }
+      ]
+    }
+  },
+
+  "turnings": {
+    "bal01": {
+      "name": "Bal01",
+      "diameter": 30,
+      "length": 870,
+      "pricePerPcs": 1500
+    },
+    "bal02": {
+      "name": "Bal02",
+      "diameter": 40,
+      "length": 900,
+      "pricePerPcs": 2200
+    }
+  },
+
+  "hardware": {
+    "bolt_m10_140": { "name": "Болт М10*140", "pricePerPcs": 120 },
+    "bolt_m6_80": { "name": "Болт М6*80", "pricePerPcs": 45 },
+    "bolt_m6_120": { "name": "Болт М6*120", "pricePerPcs": 60 }
+  }
 }
