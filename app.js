@@ -2208,8 +2208,9 @@ function openTechCard() {
   if (!body) return;
   body.innerHTML = '';
 
-  const thStyle = 'border: 1px solid #444; padding: 6px; text-align: left; background: #222; font-weight: normal; color: #aaa; white-space: nowrap;';
-  const tdStyle = 'border: 1px solid #444; padding: 6px;';
+  // Жесткие стили для ячеек (с переносом текста)
+  const thStyle = 'border: 1px solid #444; padding: 6px; text-align: left; background: #222; font-weight: normal; color: #aaa; word-break: break-word;';
+  const tdStyle = 'border: 1px solid #444; padding: 6px; word-break: break-word;';
 
   data.tableData.forEach(block => {
     let woodRows = '';
@@ -2235,56 +2236,50 @@ function openTechCard() {
         <div style="padding: 15px; font-size: 12px;">
           
           <div style="margin-bottom: 15px; font-weight:bold; color:#aaa;">(Подтаблица 1: Детали и Дерево)</div>
-          <div style="overflow-x: auto; margin-bottom: 20px; width: 100%;">
-            <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
-              <thead>
-                <tr>
-                  <th style="${thStyle}">Щит / Деталь</th>
-                  <th style="${thStyle}">Тип</th>
-                  <th style="${thStyle}">Габариты (Т×Ш×Д)</th>
-                  <th style="${thStyle}">Объем м³</th>
-                  <th style="${thStyle}">Ламели</th>
-                  <th style="${thStyle} text-align:right;">Стоимость</th>
-                </tr>
-              </thead>
-              <tbody>${woodRows}</tbody>
-            </table>
-          </div>
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="${thStyle}">Щит / Деталь</th>
+                <th style="${thStyle}">Тип</th>
+                <th style="${thStyle}">Габариты</th>
+                <th style="${thStyle}">Объем м³</th>
+                <th style="${thStyle}">Ламели</th>
+                <th style="${thStyle} text-align:right;">Стоимость</th>
+              </tr>
+            </thead>
+            <tbody>${woodRows}</tbody>
+          </table>
 
           <div style="margin-bottom: 15px; font-weight:bold; color:#aaa;">(Подтаблица 2: Работы)</div>
-          <div style="overflow-x: auto; margin-bottom: 20px; width: 100%;">
-            <table style="width: 100%; border-collapse: collapse; min-width: 400px;">
-              <thead>
-                <tr>
-                  <th style="${thStyle}">Операция</th>
-                  <th style="${thStyle}">Объем</th>
-                  <th style="${thStyle} text-align:right;">Стоимость</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td style="${tdStyle}">Склейка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.glue.toFixed(2)} ₽</td></tr>
-                <tr><td style="${tdStyle}">Калибровка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.calib.toFixed(2)} ₽</td></tr>
-                <tr><td style="${tdStyle}">ЧПУ (УП + Резка)</td><td style="${tdStyle}">${block.itemsCount} шт</td><td style="${tdStyle} text-align:right;">${block.workDetails.cnc.toFixed(2)} ₽</td></tr>
-                <tr><td style="${tdStyle}">Шлифовка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.sanding.toFixed(2)} ₽</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="${thStyle}">Операция</th>
+                <th style="${thStyle}">Объем</th>
+                <th style="${thStyle} text-align:right;">Стоимость</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="${tdStyle}">Склейка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.glue.toFixed(2)} ₽</td></tr>
+              <tr><td style="${tdStyle}">Калибровка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.calib.toFixed(2)} ₽</td></tr>
+              <tr><td style="${tdStyle}">ЧПУ (УП + Резка)</td><td style="${tdStyle}">${block.itemsCount} шт</td><td style="${tdStyle} text-align:right;">${block.workDetails.cnc.toFixed(2)} ₽</td></tr>
+              <tr><td style="${tdStyle}">Шлифовка</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.workDetails.sanding.toFixed(2)} ₽</td></tr>
+            </tbody>
+          </table>
 
           <div style="margin-bottom: 15px; font-weight:bold; color:#aaa;">(Подтаблица 3: Покраска)</div>
-          <div style="overflow-x: auto; margin-bottom: 20px; width: 100%;">
-            <table style="width: 100%; border-collapse: collapse; min-width: 300px;">
-              <thead>
-                <tr>
-                  <th style="${thStyle}">Компонент</th>
-                  <th style="${thStyle}">Расход</th>
-                  <th style="${thStyle} text-align:right;">Стоимость</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td style="${tdStyle}">Покраска (общая)</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.paintCost.toFixed(2)} ₽</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="${thStyle}">Компонент</th>
+                <th style="${thStyle}">Расход</th>
+                <th style="${thStyle} text-align:right;">Стоимость</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="${tdStyle}">Покраска (общая)</td><td style="${tdStyle}">${block.totalArea.toFixed(2)} м²</td><td style="${tdStyle} text-align:right;">${block.paintCost.toFixed(2)} ₽</td></tr>
+            </tbody>
+          </table>
 
           <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border: 1px solid #444;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Итого дерево:</span> <b>${block.woodCost.toFixed(2)} ₽</b></div>
