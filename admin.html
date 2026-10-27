@@ -1,171 +1,243 @@
-<div id="adminPanel" style="padding: 20px; background: #0f1116; color: #fff; min-height: 100vh; font-family: sans-serif;">
-  <h2 style="color: var(--accent);">⚙️ Панель управления ценами</h2>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Настройки производства</title>
+  <style>
+    :root {
+      --accent: #5b8cff;
+      --bg: #0f1116;
+      --card-bg: #1a1d25;
+      --border: #333;
+      --text: #fff;
+      --text-muted: #aaa;
+    }
+    body {
+      margin: 0; padding: 20px; background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding-bottom: 80px; /* место для нижней панели */
+    }
+    h2 { color: var(--accent); margin-top: 0; }
+    
+    /* Табы */
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
+    .tab-btn {
+      background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border);
+      padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s;
+    }
+    .tab-btn:hover { background: #222; }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Карточки и секции */
+    .section {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 20px; margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 16px; font-weight: bold; color: var(--accent);
+      margin-bottom: 15px; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px dashed #444; padding-bottom: 10px;
+    }
+    
+    /* Сетка для инпутов */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    .input-group { display: flex; flex-direction: column; gap: 5px; }
+    .input-group label { font-size: 13px; color: var(--text-muted); }
+    
+    /* Инпуты */
+    input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box;
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+
+    /* Нижняя панель */
+    .footer {
+      position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg);
+      padding: 15px 20px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; z-index: 100;
+    }
+    .status { font-size: 14px; color: var(--text-muted); }
+    .btn {
+      background: var(--accent); color: #fff; border: none; padding: 10px 20px;
+      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;
+      transition: 0.2s; display: flex; align-items: center; gap: 8px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-success { background: #31d0aa; color: #000; }
+  </style>
+</head>
+<body>
+
+  <h2>⚙️ Настройки производства (Себестоимость)</h2>
   
-  <!-- Вкладки -->
-  <div class="admin-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;">
-    <button class="admin-tab-btn active" onclick="switchTab('woods')">Древесина</button>
-    <button class="admin-tab-btn" onclick="switchTab('coefs')">Коэффициенты</button>
-    <button class="admin-tab-btn" onclick="switchTab('works')">Работы</button>
-    <button class="admin-tab-btn" onclick="switchTab('paint')">Покраска</button>
-    <button class="admin-tab-btn" onclick="switchTab('turnings')">Токарка</button>
+  <div class="tabs" id="tabsContainer">
+    <button class="tab-btn active" onclick="switchTab('woods', this)">🌲 Древесина</button>
+    <button class="tab-btn" onclick="switchTab('works', this)">🛠️ Работы</button>
+    <button class="tab-btn" onclick="switchTab('paint', this)">🎨 Покраска</button>
+    <button class="tab-btn" onclick="switchTab('details', this)">📐 Детали и Фурнитура</button>
+    <button class="tab-btn" onclick="switchTab('overheads', this)">🏢 Накладные</button>
   </div>
 
-  <!-- Контейнер для контента -->
-  <div id="adminContent" style="margin-bottom: 80px;"></div>
+  <div id="content"></div>
 
-  <!-- Нижняя панель -->
-  <div class="admin-footer" style="position: fixed; bottom: 0; left: 0; right: 0; background: #1a1d25; padding: 15px 20px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
-    <div style="color: #aaa; font-size: 14px;" id="adminStatus">Загрузка данных...</div>
-    <div style="display: flex; gap: 10px;">
-      <button onclick="exportJSON()" style="background: #31d0aa; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">⬇️ Скачать production_prices.json</button>
-    </div>
+  <div class="footer">
+    <div class="status" id="statusText">Данные загружены</div>
+    <button class="btn btn-success" onclick="exportJSON()">⬇️ Скачать JSON</button>
   </div>
-</div>
 
-<style>
-  .admin-tab-btn {
-    background: #222; color: #aaa; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;
-  }
-  .admin-tab-btn.active {
-    background: var(--accent); color: #fff; border-color: var(--accent);
-  }
-  .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-  .admin-table th { text-align: left; padding: 10px; background: #1a1d25; color: #aaa; border-bottom: 2px solid #333; }
-  .admin-table td { padding: 10px; border-bottom: 1px solid #333; }
-  .admin-input { background: #0f1116; border: 1px solid #444; color: #fff; padding: 6px 10px; border-radius: 4px; width: 100%; box-sizing: border-box; }
-  .admin-input:focus { outline: none; border-color: var(--accent); }
-</style>
-<!-- Весь JS-код для Админки -->
-<script>
-let adminData = null;
-let currentTab = 'woods';
+  <script>
+    let data = null;
+    let currentTab = 'woods';
 
-async function loadAdminData() {
-  try {
-    // Загружаем JSON файл
-    const response = await fetch('production_prices.json');
-    adminData = await response.json();
-    document.getElementById('adminStatus').innerText = 'Данные успешно загружены';
-    renderTab(currentTab);
-  } catch (error) {
-    document.getElementById('adminStatus').innerText = 'Ошибка загрузки JSON: ' + error;
-    console.error(error);
-  }
-}
-
-function switchTab(tabName) {
-  currentTab = tabName;
-  document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
-  renderTab(tabName);
-}
-
-function renderTab(tabName) {
-  const container = document.getElementById('adminContent');
-  let html = '';
-
-  if (tabName === 'woods') {
-    html = `<h3>Породы дерева</h3><table class="admin-table">
-      <tr><th>Ключ</th><th>Название</th><th>Цена за м³ (₽)</th><th>Коэф. работ</th></tr>`;
-    for (const [key, item] of Object.entries(adminData.woods)) {
-      html += `<tr>
-        <td>${key}</td>
-        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('woods', '${key}', 'name', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.pricePerM3}" onchange="updateData('woods', '${key}', 'pricePerM3', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.workCoef}" step="0.1" onchange="updateData('woods', '${key}', 'workCoef', this.value)"></td>
-      </tr>`;
+    async function loadData() {
+      try {
+        const res = await fetch('production_prices.json');
+        data = await res.json();
+        render();
+      } catch (e) {
+        document.getElementById('statusText').innerText = 'Ошибка загрузки JSON. Запустите через Live Server.';
+        document.getElementById('statusText').style.color = '#ff4444';
+        console.error(e);
+      }
     }
-    html += `</table>`;
-  } 
-  
-  else if (tabName === 'coefs') {
-    html = `<h3>Коэффициенты сложности деталей</h3><table class="admin-table">
-      <tr><th>Тип (из XML)</th><th>Название</th><th>Коэффициент</th></tr>`;
-    for (const [key, item] of Object.entries(adminData.detail_coefficients)) {
-      html += `<tr>
-        <td>${key}</td>
-        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('detail_coefficients', '${key}', 'name', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.coef}" step="0.1" onchange="updateData('detail_coefficients', '${key}', 'coef', this.value)"></td>
-      </tr>`;
+
+    function switchTab(tab, btn) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
     }
-    html += `</table>`;
-  }
 
-  else if (tabName === 'works') {
-    html = `<h3>Работы</h3><table class="admin-table">
-      <tr><th>Ключ</th><th>Название</th><th>Ед. изм.</th><th>База (₽)</th><th>Цена за ед. (₽)</th></tr>`;
-    for (const [key, item] of Object.entries(adminData.works)) {
-      html += `<tr>
-        <td>${key}</td>
-        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('works', '${key}', 'name', this.value)"></td>
-        <td><input class="admin-input" type="text" value="${item.unit}" onchange="updateData('works', '${key}', 'unit', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.base}" onchange="updateData('works', '${key}', 'base', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.perUnit}" onchange="updateData('works', '${key}', 'perUnit', this.value)"></td>
-      </tr>`;
+    function update(section, key, field, value) {
+      if (data[section] && data[section][key]) {
+        data[section][key][field] = isNaN(value) || value === '' ? value : parseFloat(value);
+        document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
+        document.getElementById('statusText').style.color = '#ff9f43';
+      }
     }
-    html += `</table>`;
-  }
 
-  else if (tabName === 'paint') {
-    html = `<h3>Склад покраски (Компоненты)</h3><table class="admin-table">
-      <tr><th>Ключ</th><th>Название</th><th>Цена за мл (₽)</th></tr>`;
-    for (const [key, item] of Object.entries(adminData.paint_inventory)) {
-      html += `<tr>
-        <td>${key}</td>
-        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('paint_inventory', '${key}', 'name', this.value)"></td>
-        <td><input class="admin-input" type="number" step="0.01" value="${item.price}" onchange="updateData('paint_inventory', '${key}', 'price', this.value)"></td>
-      </tr>`;
+    function updateRoot(field, value) {
+      data[field] = parseFloat(value) || 0;
+      document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
+      document.getElementById('statusText').style.color = '#ff9f43';
     }
-    html += `</table>
-    <p style="margin-top:20px; color:#aaa;">* Рецепты покраски (сборка слоев) мы добавим на следующем этапе. Сначала настроим цены на компоненты.</p>`;
-  }
 
-  else if (tabName === 'turnings') {
-    html = `<h3>Токарка (Балясины)</h3><table class="admin-table">
-      <tr><th>Ключ</th><th>Название</th><th>Диаметр</th><th>Длина</th><th>Цена (₽)</th></tr>`;
-    for (const [key, item] of Object.entries(adminData.turnings)) {
-      html += `<tr>
-        <td>${key}</td>
-        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('turnings', '${key}', 'name', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.diameter}" onchange="updateData('turnings', '${key}', 'diameter', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.length}" onchange="updateData('turnings', '${key}', 'length', this.value)"></td>
-        <td><input class="admin-input" type="number" value="${item.pricePerPcs}" onchange="updateData('turnings', '${key}', 'pricePerPcs', this.value)"></td>
-      </tr>`;
+    function render() {
+      const c = document.getElementById('content');
+      let html = '';
+
+      if (currentTab === 'woods') {
+        html += `<div class="section"><div class="section-title">📦 Стоимость дерева (за м³, закупка)</div><div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.woods)) {
+          html += `<div class="input-group"><label>${item.name}</label>
+            <input type="number" value="${item.pricePerM3}" onchange="update('woods','${key}','pricePerM3',this.value)">
+          </div>`;
+        }
+        html += `</div></div>`;
+
+        html += `<div class="section"><div class="section-title">📐 Сложность работ по породам (Коэффициенты)</div><div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.woods)) {
+          html += `<div class="input-group"><label>${item.name} (Коэф.)</label>
+            <input type="number" step="0.1" value="${item.workCoef}" onchange="update('woods','${key}','workCoef',this.value)">
+          </div>`;
+        }
+        html += `</div></div>`;
+        
+        html += `<div class="section"><div class="section-title">📉 Потери (Коэффициенты)</div><div class="grid-2">
+          <div class="input-group"><label>Потери (Щиты) %</label>
+            <input type="number" value="${data.settings.loss_board_percent}" onchange="updateRoot('loss_board_percent', this.value)">
+          </div>
+          <div class="input-group"><label>Потери (Бруски) %</label>
+            <input type="number" value="${data.settings.loss_beam_percent}" onchange="updateRoot('loss_beam_percent', this.value)">
+          </div>
+        </div></div>`;
+      }
+
+      if (currentTab === 'works') {
+        html += `<div class="section"><div class="section-title">🛠️ Базовые работы</div><div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.works)) {
+          html += `<div class="input-group"><label>${item.name} (₽)</label>
+            <input type="number" value="${item.perUnit}" onchange="update('works','${key}','perUnit',this.value)">
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+
+      if (currentTab === 'paint') {
+        html += `<div class="section"><div class="section-title">🎨 Склад компонентов (цена за мл)</div><div class="grid-3">`;
+        for (const [key, item] of Object.entries(data.paint_inventory)) {
+          html += `<div class="input-group"><label>${item.name}</label>
+            <input type="number" step="0.01" value="${item.price}" onchange="update('paint_inventory','${key}','price',this.value)">
+          </div>`;
+        }
+        html += `</div></div>`;
+        html += `<p style="color: #aaa; font-size: 14px;">* Конструктор рецептов (слои) добавим на следующем этапе.</p>`;
+      }
+
+      if (currentTab === 'details') {
+        html += `<div class="section"><div class="section-title">🔩 Фурнитура</div><div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.hardware)) {
+          const price = item.pricePerPcs || item.pricePerKg || 0;
+          html += `<div class="input-group"><label>${item.name} (₽)</label>
+            <input type="number" value="${price}" onchange="update('hardware','${key}', item.pricePerPcs ? 'pricePerPcs' : 'pricePerKg', this.value)">
+          </div>`;
+        }
+        html += `</div></div>`;
+
+        html += `<div class="section"><div class="section-title">🔌 Заглушки (Нормы расхода шт/деталь)</div><div class="grid-3">`;
+        for (const [key, item] of Object.entries(data.plugs)) {
+          html += `<div class="input-group"><label>${item.name}</label>
+            <input type="number" value="${item.qtyPerItem}" onchange="update('plugs','${key}','qtyPerItem',this.value)">
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+
+      if (currentTab === 'overheads') {
+        html += `<div class="section"><div class="section-title">🏢 Накладные расходы</div><div class="grid-2">
+          <div class="input-group"><label>Аренда (₽/мес)</label><input type="number" value="${data.overheads.rent}" onchange="update('overheads','rent','',this.value)"></div>
+          <div class="input-group"><label>Раб. дней в мес</label><input type="number" value="${data.overheads.working_days_per_month}" onchange="update('overheads','working_days_per_month','',this.value)"></div>
+          <div class="input-group"><label>Свет (₽/кВт)</label><input type="number" value="${data.overheads.electricity_price}" onchange="update('overheads','electricity_price','',this.value)"></div>
+          <div class="input-group"><label>Расход (кВт/день)</label><input type="number" value="${data.overheads.electricity_usage_kw}" onchange="update('overheads','electricity_usage_kw','',this.value)"></div>
+          <div class="input-group"><label>Норма (м²/день)</label><input type="number" value="${data.overheads.production_norm_m2_per_day}" onchange="update('overheads','production_norm_m2_per_day','',this.value)"></div>
+        </div></div>`;
+
+        html += `<div class="section"><div class="section-title">📈 Наценка и Налоги</div><div class="grid-2">
+          <div class="input-group"><label>Наценка (%)</label><input type="number" value="${data.settings.markup_percent}" onchange="updateRoot('markup_percent', this.value)"></div>
+          <div class="input-group"><label>УСН (%)</label><input type="number" value="${data.settings.usn_percent}" onchange="updateRoot('usn_percent', this.value)"></div>
+        </div></div>`;
+      }
+
+      c.innerHTML = html;
     }
-    html += `</table>`;
-  }
 
-  container.innerHTML = html;
-}
-
-function updateData(section, key, field, value) {
-  if (adminData[section] && adminData[section][key]) {
-    if (field === 'pricePerM3' || field === 'workCoef' || field === 'coef' || field === 'base' || field === 'perUnit' || field === 'price' || field === 'diameter' || field === 'length' || field === 'pricePerPcs') {
-      adminData[section][key][field] = parseFloat(value) || 0;
-    } else {
-      adminData[section][key][field] = value;
+    // Универсальная функция для простых полей внутри объектов (типа overheads)
+    function update(section, key, field, value) {
+      if (field) {
+        data[section][key][field] = parseFloat(value) || 0;
+      } else {
+        data[section][key] = parseFloat(value) || 0;
+      }
+      document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
+      document.getElementById('statusText').style.color = '#ff9f43';
     }
-    document.getElementById('adminStatus').innerText = 'Есть несохраненные изменения (нажмите Скачать)';
-    document.getElementById('adminStatus').style.color = '#ff9f43';
-  }
-}
 
-function exportJSON() {
-  const dataStr = JSON.stringify(adminData, null, 2);
-  const blob = new Blob([dataStr], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'production_prices.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  document.getElementById('adminStatus').innerText = 'Файл скачан! Загрузите его на GitHub.';
-  document.getElementById('adminStatus').style.color = '#31d0aa';
-}
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'production_prices.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      document.getElementById('statusText').innerText = 'Файл скачан! Замените его в GitHub.';
+      document.getElementById('statusText').style.color = '#31d0aa';
+    }
 
-document.addEventListener('DOMContentLoaded', loadAdminData);
-</script>
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>
