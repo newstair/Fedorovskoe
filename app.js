@@ -2206,16 +2206,14 @@ function openTechCard() {
 
   const body = document.getElementById('techCardBody');
   if (!body) return;
-  body.innerHTML = '';
-
+  
   // Жесткие стили для ячеек (с переносом текста)
   const thStyle = 'border: 1px solid #444; padding: 6px; text-align: left; background: #222; font-weight: normal; color: #aaa; word-break: break-word;';
   const tdStyle = 'border: 1px solid #444; padding: 6px; word-break: break-word;';
 
+  let finalHTML = ''; // Переменная для накопления HTML
+
   data.tableData.forEach(block => {
-       finalHTML += blockHTML;
-});
-body.innerHTML = finalHTML; 
     let woodRows = '';
     block.itemsDetail.forEach(item => {
       woodRows += `<tr>
@@ -2304,8 +2302,12 @@ body.innerHTML = finalHTML;
         </div>
       </div>
     `;
-    body.innerHTML += blockHTML;
+    
+    finalHTML += blockHTML; // Накапливаем HTML в переменную
   });
+
+  // Вставляем всё одной строкой (без тормозов)
+  body.innerHTML = finalHTML;
 
   const overlay = document.getElementById('techCardOverlay');
   if (overlay) overlay.classList.add('show');
