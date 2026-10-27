@@ -20,19 +20,21 @@
     "calibration": { "name": "Калибровка", "unit": "m2", "base": 0, "perUnit": 300 },
     "cnc_programming": { "name": "Создание УП (ЧПУ)", "unit": "pcs", "base": 1000, "perUnit": 50 },
     "cnc_cutting": { "name": "ЧПУ Резка (Станок)", "unit": "pcs", "base": 0, "perUnit": 300 },
-    "sanding": { "name": "Шлифовка", "unit": "m2", "base": 0, "perUnit": 450 },
+    "sanding": { "name": "Шлифовка (База)", "unit": "m2", "base": 0, "perUnit": 450 },
     "mounting": { "name": "Монтаж", "unit": "m2", "base": 5000, "perUnit": 800 }
   },
   "paint_inventory": {
-    "primer_clear": { "name": "Грунт прозрачный", "unit": "ml", "price": 0.4 },
-    "primer_white": { "name": "Грунт белый", "unit": "ml", "price": 0.5 },
-    "hardener_clear": { "name": "Отвердитель для грунта", "unit": "ml", "price": 0.6 },
-    "lacquer": { "name": "Лак бесцветный", "unit": "ml", "price": 0.8 },
-    "hardener_lacquer": { "name": "Отвердитель для лака", "unit": "ml", "price": 0.7 },
-    "thinner_646": { "name": "Растворитель 646", "unit": "ml", "price": 0.2 },
-    "thinner_420": { "name": "Растворитель 420", "unit": "ml", "price": 0.25 },
-    "toner_white": { "name": "Тон белый", "unit": "ml", "price": 0.9 },
-    "colorant": { "name": "Колер (Краситель)", "unit": "ml", "price": 1.2 }
+    "primer_clear": { "name": "Грунт прозрачный", "unit": "l", "pricePerLiter": 400 },
+    "primer_white": { "name": "Грунт белый", "unit": "l", "pricePerLiter": 500 },
+    "hardener_clear": { "name": "Отвердитель (прозрачный)", "unit": "l", "pricePerLiter": 600 },
+    "hardener_white": { "name": "Отвердитель (белый)", "unit": "l", "pricePerLiter": 650 },
+    "lacquer": { "name": "Лак бесцветный", "unit": "l", "pricePerLiter": 800 },
+    "hardener_lacquer": { "name": "Отвердитель для лака", "unit": "l", "pricePerLiter": 700 },
+    "thinner_646": { "name": "Растворитель 646", "unit": "l", "pricePerLiter": 200 },
+    "thinner_420": { "name": "Растворитель 420", "unit": "l", "pricePerLiter": 250 },
+    "toner_white": { "name": "Тон белый", "unit": "l", "pricePerLiter": 900 },
+    "colorant_oak": { "name": "Колер (Орех)", "unit": "l", "pricePerLiter": 1200 },
+    "colorant_walnut": { "name": "Колер (Венге)", "unit": "l", "pricePerLiter": 1200 }
   },
   "paint_recipes": {
     "clear": {
@@ -50,7 +52,7 @@
       "name": "Белый укрывной",
       "layers": [
         { "component": "primer_white", "volume": 1000, "consumption": 250 },
-        { "component": "hardener_clear", "volume": 450, "consumption": 112.5 },
+        { "component": "hardener_white", "volume": 450, "consumption": 112.5 },
         { "component": "thinner_420", "volume": 350, "consumption": 87.5 },
         { "component": "lacquer", "volume": 1000, "consumption": 200 },
         { "component": "hardener_lacquer", "volume": 450, "consumption": 90 },
@@ -65,6 +67,7 @@
   "hardware": {
     "bolt_m10_140": { "name": "Болт М10*140", "pricePerPcs": 120 },
     "bolt_m6_80": { "name": "Болт М6*80", "pricePerPcs": 45 },
+    "bolt_m6_120": { "name": "Болт М6*120", "pricePerPcs": 60 },
     "glue_kg": { "name": "Клей столярный", "pricePerKg": 350 }
   },
   "plugs": {
