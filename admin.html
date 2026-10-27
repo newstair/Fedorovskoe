@@ -35,3 +35,137 @@
   .admin-input { background: #0f1116; border: 1px solid #444; color: #fff; padding: 6px 10px; border-radius: 4px; width: 100%; box-sizing: border-box; }
   .admin-input:focus { outline: none; border-color: var(--accent); }
 </style>
+<!-- Весь JS-код для Админки -->
+<script>
+let adminData = null;
+let currentTab = 'woods';
+
+async function loadAdminData() {
+  try {
+    // Загружаем JSON файл
+    const response = await fetch('production_prices.json');
+    adminData = await response.json();
+    document.getElementById('adminStatus').innerText = 'Данные успешно загружены';
+    renderTab(currentTab);
+  } catch (error) {
+    document.getElementById('adminStatus').innerText = 'Ошибка загрузки JSON: ' + error;
+    console.error(error);
+  }
+}
+
+function switchTab(tabName) {
+  currentTab = tabName;
+  document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTab(tabName);
+}
+
+function renderTab(tabName) {
+  const container = document.getElementById('adminContent');
+  let html = '';
+
+  if (tabName === 'woods') {
+    html = `<h3>Породы дерева</h3><table class="admin-table">
+      <tr><th>Ключ</th><th>Название</th><th>Цена за м³ (₽)</th><th>Коэф. работ</th></tr>`;
+    for (const [key, item] of Object.entries(adminData.woods)) {
+      html += `<tr>
+        <td>${key}</td>
+        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('woods', '${key}', 'name', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.pricePerM3}" onchange="updateData('woods', '${key}', 'pricePerM3', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.workCoef}" step="0.1" onchange="updateData('woods', '${key}', 'workCoef', this.value)"></td>
+      </tr>`;
+    }
+    html += `</table>`;
+  } 
+  
+  else if (tabName === 'coefs') {
+    html = `<h3>Коэффициенты сложности деталей</h3><table class="admin-table">
+      <tr><th>Тип (из XML)</th><th>Название</th><th>Коэффициент</th></tr>`;
+    for (const [key, item] of Object.entries(adminData.detail_coefficients)) {
+      html += `<tr>
+        <td>${key}</td>
+        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('detail_coefficients', '${key}', 'name', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.coef}" step="0.1" onchange="updateData('detail_coefficients', '${key}', 'coef', this.value)"></td>
+      </tr>`;
+    }
+    html += `</table>`;
+  }
+
+  else if (tabName === 'works') {
+    html = `<h3>Работы</h3><table class="admin-table">
+      <tr><th>Ключ</th><th>Название</th><th>Ед. изм.</th><th>База (₽)</th><th>Цена за ед. (₽)</th></tr>`;
+    for (const [key, item] of Object.entries(adminData.works)) {
+      html += `<tr>
+        <td>${key}</td>
+        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('works', '${key}', 'name', this.value)"></td>
+        <td><input class="admin-input" type="text" value="${item.unit}" onchange="updateData('works', '${key}', 'unit', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.base}" onchange="updateData('works', '${key}', 'base', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.perUnit}" onchange="updateData('works', '${key}', 'perUnit', this.value)"></td>
+      </tr>`;
+    }
+    html += `</table>`;
+  }
+
+  else if (tabName === 'paint') {
+    html = `<h3>Склад покраски (Компоненты)</h3><table class="admin-table">
+      <tr><th>Ключ</th><th>Название</th><th>Цена за мл (₽)</th></tr>`;
+    for (const [key, item] of Object.entries(adminData.paint_inventory)) {
+      html += `<tr>
+        <td>${key}</td>
+        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('paint_inventory', '${key}', 'name', this.value)"></td>
+        <td><input class="admin-input" type="number" step="0.01" value="${item.price}" onchange="updateData('paint_inventory', '${key}', 'price', this.value)"></td>
+      </tr>`;
+    }
+    html += `</table>
+    <p style="margin-top:20px; color:#aaa;">* Рецепты покраски (сборка слоев) мы добавим на следующем этапе. Сначала настроим цены на компоненты.</p>`;
+  }
+
+  else if (tabName === 'turnings') {
+    html = `<h3>Токарка (Балясины)</h3><table class="admin-table">
+      <tr><th>Ключ</th><th>Название</th><th>Диаметр</th><th>Длина</th><th>Цена (₽)</th></tr>`;
+    for (const [key, item] of Object.entries(adminData.turnings)) {
+      html += `<tr>
+        <td>${key}</td>
+        <td><input class="admin-input" type="text" value="${item.name}" onchange="updateData('turnings', '${key}', 'name', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.diameter}" onchange="updateData('turnings', '${key}', 'diameter', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.length}" onchange="updateData('turnings', '${key}', 'length', this.value)"></td>
+        <td><input class="admin-input" type="number" value="${item.pricePerPcs}" onchange="updateData('turnings', '${key}', 'pricePerPcs', this.value)"></td>
+      </tr>`;
+    }
+    html += `</table>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function updateData(section, key, field, value) {
+  if (adminData[section] && adminData[section][key]) {
+    if (field === 'pricePerM3' || field === 'workCoef' || field === 'coef' || field === 'base' || field === 'perUnit' || field === 'price' || field === 'diameter' || field === 'length' || field === 'pricePerPcs') {
+      adminData[section][key][field] = parseFloat(value) || 0;
+    } else {
+      adminData[section][key][field] = value;
+    }
+    document.getElementById('adminStatus').innerText = 'Есть несохраненные изменения (нажмите Скачать)';
+    document.getElementById('adminStatus').style.color = '#ff9f43';
+  }
+}
+
+function exportJSON() {
+  const dataStr = JSON.stringify(adminData, null, 2);
+  const blob = new Blob([dataStr], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'production_prices.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  document.getElementById('adminStatus').innerText = 'Файл скачан! Загрузите его на GitHub.';
+  document.getElementById('adminStatus').style.color = '#31d0aa';
+}
+
+document.addEventListener('DOMContentLoaded', loadAdminData);
+</script>
