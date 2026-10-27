@@ -5,72 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Настройки производства</title>
   <style>
-    :root {
-      --accent: #5b8cff;
-      --bg: #0f1116;
-      --card-bg: #1a1d25;
-      --border: #333;
-      --text: #fff;
-      --text-muted: #aaa;
-    }
-    body {
-      margin: 0; padding: 20px; background: var(--bg); color: var(--text);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding-bottom: 80px; /* место для нижней панели */
-    }
+    :root { --accent: #5b8cff; --bg: #0f1116; --card-bg: #1a1d25; --border: #333; --text: #fff; --text-muted: #aaa; }
+    body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
     h2 { color: var(--accent); margin-top: 0; }
-    
-    /* Табы */
     .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
-    .tab-btn {
-      background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border);
-      padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s;
-    }
+    .tab-btn { background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s; }
     .tab-btn:hover { background: #222; }
     .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-    /* Карточки и секции */
-    .section {
-      background: var(--card-bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 20px; margin-bottom: 20px;
-    }
-    .section-title {
-      font-size: 16px; font-weight: bold; color: var(--accent);
-      margin-bottom: 15px; display: flex; align-items: center; gap: 8px;
-      border-bottom: 1px dashed #444; padding-bottom: 10px;
-    }
-    
-    /* Сетка для инпутов */
+    .section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .section-title { font-size: 16px; font-weight: bold; color: var(--accent); margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed #444; padding-bottom: 10px; }
+    .btn-add { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+    .btn-add:hover { background: var(--accent); color: #fff; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
     .input-group { display: flex; flex-direction: column; gap: 5px; }
     .input-group label { font-size: 13px; color: var(--text-muted); }
-    
-    /* Инпуты */
-    input {
-      background: var(--bg); border: 1px solid var(--border); color: var(--text);
-      padding: 8px 12px; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box;
-    }
+    input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
     input:focus { outline: none; border-color: var(--accent); }
-
-    /* Нижняя панель */
-    .footer {
-      position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg);
-      padding: 15px 20px; border-top: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center; z-index: 100;
-    }
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .status { font-size: 14px; color: var(--text-muted); }
-    .btn {
-      background: var(--accent); color: #fff; border: none; padding: 10px 20px;
-      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;
-      transition: 0.2s; display: flex; align-items: center; gap: 8px;
-    }
+    .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
     .btn:hover { opacity: 0.9; }
     .btn-success { background: #31d0aa; color: #000; }
   </style>
 </head>
 <body>
-
   <h2>⚙️ Настройки производства (Себестоимость)</h2>
   
   <div class="tabs" id="tabsContainer">
@@ -83,10 +42,8 @@
 
   <div id="content"></div>
 
-    <div class="footer">
+  <div class="footer">
     <div class="status" id="statusText">Данные загружены</div>
-    
-    <!-- Обертка для кнопок, чтобы они стояли в ряд -->
     <div style="display: flex; gap: 10px;">
       <button class="btn btn-success" onclick="exportJSON()">⬇️ Скачать JSON</button>
       <button class="btn" style="background: #333; border: 1px solid #444;" onclick="closeAdmin()">❌ Закрыть</button>
@@ -101,9 +58,13 @@
       try {
         const res = await fetch('production_prices.json');
         data = await res.json();
+        if(!data.settings) data.settings = { loss_board_percent: 0, loss_beam_percent: 0, markup_percent: 0, usn_percent: 0 };
+        if(!data.overheads) data.overheads = { rent: 0, working_days_per_month: 0, electricity_price: 0, electricity_usage_kw: 0, production_norm_m2_per_day: 0 };
+        document.getElementById('statusText').innerText = 'Данные загружены';
+        document.getElementById('statusText').style.color = '#aaa';
         render();
       } catch (e) {
-        document.getElementById('statusText').innerText = 'Ошибка загрузки JSON. Запустите через Live Server.';
+        document.getElementById('statusText').innerText = 'Ошибка загрузки JSON.';
         document.getElementById('statusText').style.color = '#ff4444';
         console.error(e);
       }
@@ -116,36 +77,26 @@
       render();
     }
 
-    function update(section, key, field, value) {
-      if (data[section] && data[section][key]) {
-        data[section][key][field] = isNaN(value) || value === '' ? value : parseFloat(value);
-        document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
-        document.getElementById('statusText').style.color = '#ff9f43';
-      }
-    }
-
-    function updateRoot(field, value) {
-      data[field] = parseFloat(value) || 0;
-      document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
-      document.getElementById('statusText').style.color = '#ff9f43';
-    }
-
     function render() {
       const c = document.getElementById('content');
       let html = '';
 
       if (currentTab === 'woods') {
-        html += `<div class="section"><div class="section-title">📦 Стоимость дерева (за м³, закупка)</div><div class="grid-2">`;
-        for (const [key, item] of Object.entries(data.woods)) {
+        html += `<div class="section">
+          <div class="section-title">📦 Стоимость дерева (за м³) <button class="btn-add" onclick="addNew('woods')">+ Добавить</button></div>
+          <div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.woods || {})) {
           html += `<div class="input-group"><label>${item.name}</label>
             <input type="number" value="${item.pricePerM3}" onchange="update('woods','${key}','pricePerM3',this.value)">
           </div>`;
         }
         html += `</div></div>`;
 
-        html += `<div class="section"><div class="section-title">📐 Сложность работ по породам (Коэффициенты)</div><div class="grid-2">`;
-        for (const [key, item] of Object.entries(data.woods)) {
-          html += `<div class="input-group"><label>${item.name} (Коэф.)</label>
+        html += `<div class="section">
+          <div class="section-title">📐 Сложность работ по породам (Коэф.)</div>
+          <div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.woods || {})) {
+          html += `<div class="input-group"><label>${item.name}</label>
             <input type="number" step="0.1" value="${item.workCoef}" onchange="update('woods','${key}','workCoef',this.value)">
           </div>`;
         }
@@ -162,8 +113,10 @@
       }
 
       if (currentTab === 'works') {
-        html += `<div class="section"><div class="section-title">🛠️ Базовые работы</div><div class="grid-2">`;
-        for (const [key, item] of Object.entries(data.works)) {
+        html += `<div class="section">
+          <div class="section-title">🛠️ Базовые работы <button class="btn-add" onclick="addNew('works')">+ Добавить</button></div>
+          <div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.works || {})) {
           html += `<div class="input-group"><label>${item.name} (₽)</label>
             <input type="number" value="${item.perUnit}" onchange="update('works','${key}','perUnit',this.value)">
           </div>`;
@@ -172,30 +125,26 @@
       }
 
       if (currentTab === 'paint') {
-        html += `<div class="section"><div class="section-title">🎨 Склад компонентов (цена за мл)</div><div class="grid-3">`;
-        for (const [key, item] of Object.entries(data.paint_inventory)) {
+        html += `<div class="section">
+          <div class="section-title">🎨 Склад (Цена за 1 литр) <button class="btn-add" onclick="addNew('paint_inventory')">+ Добавить</button></div>
+          <div class="grid-3">`;
+        for (const [key, item] of Object.entries(data.paint_inventory || {})) {
           html += `<div class="input-group"><label>${item.name}</label>
-            <input type="number" step="0.01" value="${item.price}" onchange="update('paint_inventory','${key}','price',this.value)">
+            <input type="number" step="0.01" value="${item.pricePerLiter || 0}" onchange="update('paint_inventory','${key}','pricePerLiter',this.value)">
           </div>`;
         }
         html += `</div></div>`;
-        html += `<p style="color: #aaa; font-size: 14px;">* Конструктор рецептов (слои) добавим на следующем этапе.</p>`;
       }
 
       if (currentTab === 'details') {
-        html += `<div class="section"><div class="section-title">🔩 Фурнитура</div><div class="grid-2">`;
-        for (const [key, item] of Object.entries(data.hardware)) {
+        html += `<div class="section">
+          <div class="section-title">🔩 Фурнитура <button class="btn-add" onclick="addNew('hardware')">+ Добавить</button></div>
+          <div class="grid-2">`;
+        for (const [key, item] of Object.entries(data.hardware || {})) {
           const price = item.pricePerPcs || item.pricePerKg || 0;
+          const field = item.pricePerPcs ? 'pricePerPcs' : 'pricePerKg';
           html += `<div class="input-group"><label>${item.name} (₽)</label>
-            <input type="number" value="${price}" onchange="update('hardware','${key}', item.pricePerPcs ? 'pricePerPcs' : 'pricePerKg', this.value)">
-          </div>`;
-        }
-        html += `</div></div>`;
-
-        html += `<div class="section"><div class="section-title">🔌 Заглушки (Нормы расхода шт/деталь)</div><div class="grid-3">`;
-        for (const [key, item] of Object.entries(data.plugs)) {
-          html += `<div class="input-group"><label>${item.name}</label>
-            <input type="number" value="${item.qtyPerItem}" onchange="update('plugs','${key}','qtyPerItem',this.value)">
+            <input type="number" value="${price}" onchange="update('hardware','${key}','${field}',this.value)">
           </div>`;
         }
         html += `</div></div>`;
@@ -219,13 +168,32 @@
       c.innerHTML = html;
     }
 
-    // Универсальная функция для простых полей внутри объектов (типа overheads)
-    function update(section, key, field, value) {
-      if (field) {
-        data[section][key][field] = parseFloat(value) || 0;
-      } else {
-        data[section][key] = parseFloat(value) || 0;
+    // Простая заглушка для добавления новых элементов
+    function addNew(section) {
+      const name = prompt('Введите название новой позиции:');
+      if (name) {
+        const key = 'new_' + Date.now();
+        if (section === 'woods') data.woods[key] = { name: name, pricePerM3: 0, workCoef: 1.0 };
+        if (section === 'works') data.works[key] = { name: name, unit: 'm2', base: 0, perUnit: 0 };
+        if (section === 'paint_inventory') data.paint_inventory[key] = { name: name, unit: 'l', pricePerLiter: 0 };
+        if (section === 'hardware') data.hardware[key] = { name: name, pricePerPcs: 0 };
+        render();
+        document.getElementById('statusText').innerText = 'Добавлена новая позиция!';
+        document.getElementById('statusText').style.color = '#31d0aa';
       }
+    }
+
+    function update(section, key, field, value) {
+      if (data[section] && data[section][key]) {
+        if (field) { data[section][key][field] = parseFloat(value) || 0; } 
+        else { data[section][key] = parseFloat(value) || 0; }
+        document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
+        document.getElementById('statusText').style.color = '#ff9f43';
+      }
+    }
+
+    function updateRoot(field, value) {
+      data.settings[field] = parseFloat(value) || 0;
       document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
       document.getElementById('statusText').style.color = '#ff9f43';
     }
@@ -240,6 +208,10 @@
       URL.revokeObjectURL(url);
       document.getElementById('statusText').innerText = 'Файл скачан! Замените его в GitHub.';
       document.getElementById('statusText').style.color = '#31d0aa';
+    }
+
+    function closeAdmin() {
+      window.location.href = 'index.html'; // Или на главную страницу
     }
 
     document.addEventListener('DOMContentLoaded', loadData);
