@@ -3160,7 +3160,7 @@ if (btnAdmin) {
   btnAdmin.addEventListener('click', () => {
     const pass = prompt('Введите пароль для доступа к внутреннему расчету:');
     if (pass === ADMIN_PASSWORD) {
-      window.open('admin.html', '_blank');
+      window.location.href = 'admin.html';
     } else if (pass !== null) { 
       showToast('Неверный пароль!', true);
     }
