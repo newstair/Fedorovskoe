@@ -2213,6 +2213,9 @@ function openTechCard() {
   const tdStyle = 'border: 1px solid #444; padding: 6px; word-break: break-word;';
 
   data.tableData.forEach(block => {
+       finalHTML += blockHTML;
+});
+body.innerHTML = finalHTML; 
     let woodRows = '';
     block.itemsDetail.forEach(item => {
       woodRows += `<tr>
