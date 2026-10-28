@@ -7,7 +7,7 @@
     :root { --accent: #5b8cff; --bg: #0f1116; --card-bg: #1a1d25; --border: #333; --text: #fff; --text-muted: #aaa; }
     body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
     
-    .modal { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; max-width: 900px; margin: 0 auto; overflow: hidden; }
+    .modal { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; max-width: 1000px; margin: 0 auto; overflow: hidden; }
     .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .modal-body { padding: 20px; }
     
@@ -22,6 +22,7 @@
     th { text-align: left; padding: 8px; background: #222; color: #aaa; border: 1px solid #444; font-weight: normal; word-break: break-word; }
     td { padding: 8px; border: 1px solid #444; word-break: break-word; }
     .text-right { text-align: right; }
+    .text-center { text-align: center; }
     
     .summary { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border: 1px solid #444; margin-top: 20px; }
     .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
@@ -34,21 +35,20 @@
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     
-    .error-box { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-family: monospace; white-space: pre-wrap; font-size: 14px; }
+    .error-box { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-family: monospace; font-size: 14px; }
   </style>
 </head>
 <body>
 
   <div class="modal">
     <div class="modal-header">
-      <h2 style="margin: 0; font-size: 20px;">📊 Технологическая карта (Тест)</h2>
+      <h2 style="margin: 0; font-size: 20px;">📊 Технологическая карта (Расчет брусков)</h2>
     </div>
     <div class="modal-body" id="techCardBody">
       <div style="text-align: center; color: #aaa; padding: 20px;">Загрузка данных...</div>
     </div>
   </div>
 
-  <!-- ГЛОБАЛЬНЫЕ НАСТРОЙКИ ВНИЗУ -->
   <div class="footer">
     <div style="display: flex; gap: 20px; align-items: center;">
       <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
@@ -62,37 +62,37 @@
   </div>
 
   <script>
-    // 1. Мок XML (взяли реальный кусок из вашего файла)
+    // Мок XML (Реальные данные для визуального теста)
     const xmlString = `
       <details>
         <detail name="1_Tr1">
           <type id="Step">Ступень</type>
           <attributes><attribute name="subtype" type="string" value="straight"/></attributes>
-          <dim text="40 x 945 x 341"><length>945</length><width>341</width></dim>
+          <dim text="40 x 945 x 431"><length>945</length><width>431</width></dim>
           <material>PINE</material>
         </detail>
         <detail name="1_Tr2">
           <type id="Step">Ступень</type>
           <attributes><attribute name="subtype" type="string" value="winder"/></attributes>
-          <dim text="40 x 945 x 364"><length>945</length><width>364</width></dim>
+          <dim text="40 x 1206 x 584"><length>1206</length><width>584</width></dim>
           <material>PINE</material>
         </detail>
       </details>
     `;
 
-    // 2. Мок площади из DXF
-    const dxfAreas = { "1_Tr1": 0.3, "1_Tr2": 0.35 };
+    // Мок площади из DXF
+    const dxfAreas = { "1_Tr1": 0.35, "1_Tr2": 0.50 };
 
     let prices = null;
 
     async function init() {
       try {
         const res = await fetch('production_prices.json');
-        if (!res.ok) throw new Error("Файл JSON не найден (404).");
+        if (!res.ok) throw new Error("Файл JSON не найден. Вы точно загрузили его на GitHub?");
         prices = await res.json();
         renderTechCard();
       } catch (e) {
-        document.getElementById('techCardBody').innerHTML = `<div class="error-box">Ошибка загрузки JSON: ${e.message}</div>`;
+        document.getElementById('techCardBody').innerHTML = `<div class="error-box">Ошибка: ${e.message}</div>`;
       }
     }
 
@@ -104,6 +104,8 @@
 
         let blockItems = [];
         let totalArea = 0;
+        let totalWood = 0;
+        let totalGlue = 0, totalCncUp = 0, totalCncCut = 0, totalSanding = 0;
 
         for (let i = 0; i < details.length; i++) {
           const el = details[i];
@@ -113,110 +115,126 @@
           const subtype = el.getElementsByTagName("attribute")[0] ? el.getElementsByTagName("attribute")[0].getAttribute("value") : "straight";
           const length = parseFloat(el.getElementsByTagName("length")[0].textContent);
           const width = parseFloat(el.getElementsByTagName("width")[0].textContent);
+          const thickness = 40; // Фиксируем для теста
           
           const materialKey = "pine"; 
-          
-          // МАТЕМАТИКА ДЕРЕВА (+100, округление до 50, сечение 50х50)
-          const purchaseLength = Math.ceil((length + 100) / 50) * 50; 
-          const volume = (purchaseLength * 50 * 50) / 1000000000; 
-          
-          // БЕЗОПАСНОЕ ПОЛУЧЕНИЕ КОЭФФИЦИЕНТОВ
-          const coefType = subtype === "winder" ? "Step_winder" : "Step_straight";
-          const complexityCoef = (prices.detail_coefficients && prices.detail_coefficients[coefType]) ? prices.detail_coefficients[coefType].coef : 1.0;
-          const woodCoef = (prices.woods && prices.woods[materialKey]) ? prices.woods[materialKey].workCoef : 1.0;
-          const woodPrice = (prices.woods && prices.woods[materialKey]) ? prices.woods[materialKey].pricePerM3 : 0;
+          const woodName = prices.woods[materialKey] ? prices.woods[materialKey].name : "Сосна";
 
+          // === МАТЕМАТИКА БРУСКОВ (ЛАМЕЛЕЙ) ===
+          // 1. Количество брусков = Ширина детали / 45 (округление вверх)
+          const lathsCount = Math.ceil(width / 45);
+          
+          // 2. Длина заготовки = Длина детали + 100, округление вверх до 50
+          const purchaseLength = Math.ceil((length + 100) / 50) * 50;
+          
+          // 3. Сечение заготовки = 50х50 мм
+          // 4. Объем всех брусков для этой детали
+          const volume = (purchaseLength * 50 * 50 * lathsCount) / 1000000000; 
+          
+          // Работы
+          const coefType = subtype === "winder" ? "Step_winder" : "Step_straight";
+          const complexityCoef = prices.detail_coefficients[coefType] ? prices.detail_coefficients[coefType].coef : 1.0;
+          const woodCoef = prices.woods[materialKey] ? prices.woods[materialKey].workCoef : 1.0;
+          
           const area = dxfAreas[name] || 0;
-          const paintArea = area * 2; // умножаем на 2 стороны
+          const paintArea = area * 2;
           totalArea += paintArea;
 
-          // МАТЕМАТИКА РАБОТ
-          let worksCost = 0;
-          const glueKey = purchaseLength > 2000 ? "glue_long" : "glue_short";
-          
-          const workGlue = (prices.works && prices.works[glueKey]) ? prices.works[glueKey].perUnit : 0;
-          const workCalib = (prices.works && prices.works.calibration) ? prices.works.calibration.perUnit : 0;
-          const workCncProg = (prices.works && prices.works.cnc_programming) ? prices.works.cnc_programming.perUnit : 0;
-          const workCncCut = (prices.works && prices.works.cnc_cutting) ? prices.works.cnc_cutting.perUnit : 0;
-          const workSanding = (prices.works && prices.works.sanding) ? prices.works.sanding.perUnit : 0;
-          
-          worksCost += (workGlue * paintArea * complexityCoef * woodCoef);
-          worksCost += (workCalib * paintArea * complexityCoef * woodCoef);
-          worksCost += (workCncProg + workCncCut) * complexityCoef;
-          worksCost += (workSanding * paintArea * complexityCoef * woodCoef);
-
+          const woodPrice = prices.woods[materialKey] ? prices.woods[materialKey].pricePerM3 : 0;
           const woodCost = volume * woodPrice;
+          totalWood += woodCost;
 
-          blockItems.push({ name, subtype, dims: `${length}x${width}`, purchaseLength, volume, woodCost, worksCost, paintArea });
-        }
+          // Отдельные работы
+          const glueKey = purchaseLength > 2000 ? "glue_long" : "glue_short";
+          const cGlue = (prices.works[glueKey]?.perUnit || 0) * paintArea * complexityCoef * woodCoef;
+          const cCncUp = (prices.works.cnc_programming?.perUnit || 0) * complexityCoef;
+          const cCncCut = (prices.works.cnc_cutting?.perUnit || 0) * complexityCoef;
+          const cSanding = (prices.works.sanding?.perUnit || 0) * paintArea * complexityCoef * woodCoef;
 
-        // --- МАТЕМАТИКА ПОКРАСКИ ---
-        // Ищем рецепт с названием "Белый" или берем первый попавшийся
-        let recipe = null;
-        if (prices.paint_recipes) {
-           recipe = Object.values(prices.paint_recipes).find(r => r.name.includes("Белый") || r.name.includes("белый"));
-           if (!recipe) recipe = Object.values(prices.paint_recipes)[0]; 
-        }
-        
-        if (!recipe) {
-           recipe = { name: "Пустой рецепт", stain: { enabled: false, consumption: 0, components: [] }, primer: { enabled: false, consumption: 0, components: [] }, lacquer: { enabled: false, consumption: 0, components: [] } };
-        }
+          totalGlue += cGlue; totalCncUp += cCncUp; totalCncCut += cCncCut; totalSanding += cSanding;
 
-        let paintCostTotal = 0;
-
-        const calcBlockCost = (block) => {
-          if (!block || !block.enabled) return 0;
-          let totalVolume = 0;
-          let totalPrice = 0;
-          block.components.forEach(c => {
-            totalVolume += c.volume;
-            const invItem = prices.paint_inventory[c.component];
-            if (invItem) {
-               totalPrice += (c.volume * (invItem.pricePerLiter / 1000));
-            }
+          blockItems.push({
+            name, subtype, woodName, 
+            dims: `${length}×${width}×${thickness}`, 
+            lathDims: `50×50×${purchaseLength}`, 
+            lathsCount, volume, woodCost
           });
-          if (totalVolume === 0) return 0;
-          const pricePerMl = totalPrice / totalVolume;
-          return pricePerMl * block.consumption * totalArea;
-        };
+        }
 
-        const stainCost = calcBlockCost(recipe.stain);
-        const primerCost = calcBlockCost(recipe.primer);
-        const lacquerCost = calcBlockCost(recipe.lacquer);
-        paintCostTotal = stainCost + primerCost + lacquerCost;
+        // === ПОКРАСКА ===
+        let recipe = Object.values(prices.paint_recipes || {}).find(r => r.name.includes("Белый")) || Object.values(prices.paint_recipes || {})[0];
+        
+        let paintCostTotal = 0;
+        let paintDetailsHTML = '';
 
-        // --- СВОДКА ---
-        const totalWood = blockItems.reduce((sum, item) => sum + item.woodCost, 0);
-        const totalWorks = blockItems.reduce((sum, item) => sum + item.worksCost, 0);
-        
-        const workMountBase = (prices.works && prices.works.mounting) ? prices.works.mounting.base : 0;
-        const workMountUnit = (prices.works && prices.works.mounting) ? prices.works.mounting.perUnit : 0;
-        const mountingCost = workMountBase + (workMountUnit * totalArea);
-        
-        // Накладные (упрощенно на м2)
-        const overheadsPerM2 = (prices.overheads && prices.overheads.production_norm_m2_per_day) ? ((prices.overheads.rent + (prices.overheads.electricity_price * prices.overheads.electricity_usage_kw * prices.overheads.working_days_per_month)) / (prices.overheads.production_norm_m2_per_day * prices.overheads.working_days_per_month)) : 0;
+        if (recipe) {
+          const processPaintBlock = (block, title) => {
+            if (!block || !block.enabled) return '';
+            let blockCost = 0;
+            let rows = '';
+            
+            let totalVol = 0, totalPrice = 0;
+            block.components.forEach(c => {
+              totalVol += c.volume;
+              const inv = prices.paint_inventory[c.component];
+              if (inv) totalPrice += (c.volume * (inv.pricePerLiter / 1000));
+            });
+            const pricePerMl = totalVol > 0 ? totalPrice / totalVol : 0;
+            
+            block.components.forEach(c => {
+              const inv = prices.paint_inventory[c.component];
+              const compName = inv ? inv.name : "Неизвестно";
+              const compCost = (c.volume * (inv ? inv.pricePerLiter / 1000 : 0));
+              rows += `<tr>
+                <td style="padding-left:20px;">${compName}</td>
+                <td>${c.volume} мл</td>
+                <td class="text-right">${compCost.toFixed(2)} ₽</td>
+              </tr>`;
+            });
+
+            blockCost = pricePerMl * block.consumption * totalArea;
+            paintCostTotal += blockCost;
+
+            return `
+              <tr style="background:#222;">
+                <td colspan="2"><b>${title} (Расход: ${block.consumption} мл/м²)</b></td>
+                <td class="text-right"><b>${blockCost.toFixed(2)} ₽</b></td>
+              </tr>
+              ${rows}
+            `;
+          };
+
+          paintDetailsHTML += processPaintBlock(recipe.stain, '1. Тонировка');
+          paintDetailsHTML += processPaintBlock(recipe.primer, '2. Грунт');
+          paintDetailsHTML += processPaintBlock(recipe.lacquer, '3. Лак');
+        }
+
+        // === СВОДКА ===
+        const totalWorks = totalGlue + totalCncUp + totalCncCut + totalSanding;
+        const mountingCost = (prices.works.mounting?.base || 0) + ((prices.works.mounting?.perUnit || 0) * totalArea);
+        const overheadsPerM2 = (prices.overheads?.production_norm_m2_per_day) ? ((prices.overheads.rent + (prices.overheads.electricity_price * prices.overheads.electricity_usage_kw * prices.overheads.working_days_per_month)) / (prices.overheads.production_norm_m2_per_day * prices.overheads.working_days_per_month)) : 0;
         const overheadsCost = overheadsPerM2 * totalArea;
 
         const costPrice = totalWood + totalWorks + paintCostTotal + mountingCost + overheadsCost;
-        
-        const markup = (prices.settings && prices.settings.markup_percent) ? prices.settings.markup_percent : 0;
+        const markup = prices.settings?.markup_percent || 0;
         const markupCost = costPrice * (markup / 100);
-        
+        const usnPercent = prices.settings?.usn_percent || 6;
         const usnEnabled = document.getElementById('globalUsn').checked;
-        const usnPercent = (prices.settings && prices.settings.usn_percent) ? prices.settings.usn_percent : 6;
         const usnCost = usnEnabled ? (costPrice + markupCost) * (usnPercent / 100) : 0;
-        
         const finalPrice = costPrice + markupCost + usnCost;
 
         document.getElementById('grandTotal').innerText = finalPrice.toFixed(2) + ' ₽';
 
-        // --- РЕНДЕР HTML ---
+        // === РЕНДЕР HTML ===
         let rowsHTML = '';
         blockItems.forEach(item => {
           rowsHTML += `<tr>
             <td>${item.name}</td>
             <td>${item.subtype === 'winder' ? 'Забежная' : 'Прямая'}</td>
-            <td>${item.dims} (загот. ${item.purchaseLength})</td>
+            <td>${item.woodName}</td>
+            <td>${item.dims}</td>
+            <td class="text-center">${item.lathDims}</td>
+            <td class="text-center">${item.lathsCount} шт</td>
             <td>${item.volume.toFixed(4)}</td>
             <td class="text-right">${item.woodCost.toFixed(2)} ₽</td>
           </tr>`;
@@ -226,28 +244,33 @@
           <div class="block-card">
             <div class="block-header">
               <div class="block-title">📦 БЛОК: СТУПЕНИ (${blockItems.length} шт)</div>
-              <div class="block-meta">🔵 Материал: Сосна | 🎨 Покраска: ${recipe.name}</div>
+              <div class="block-meta">🎨 Покраска: ${recipe ? recipe.name : 'Не выбрана'}</div>
             </div>
             <div style="padding: 15px;">
               
               <div class="sub-title">1. Детали и Дерево</div>
               <table>
-                <tr><th>Деталь</th><th>Тип</th><th>Габариты (мм)</th><th>Объем м³</th><th class="text-right">Стоимость</th></tr>
+                <tr>
+                  <th>Деталь</th><th>Тип</th><th>Дерево</th><th>Щит (мм)</th>
+                  <th class="text-center">Брусок (мм)</th><th class="text-center">Шт в щите</th>
+                  <th>Объем (м³)</th><th class="text-right">Стоимость</th>
+                </tr>
                 ${rowsHTML}
               </table>
 
-              <div class="sub-title">2. Работы (с учетом коэф.)</div>
+              <div class="sub-title">2. Работы</div>
               <table>
-                <tr><th>Операция</th><th>Объем</th><th class="text-right">Стоимость</th></tr>
-                <tr><td>Склейка / Калибровка / Шлифовка</td><td>${totalArea.toFixed(2)} м²</td><td class="text-right">${totalWorks.toFixed(2)} ₽</td></tr>
+                <tr><th>Операция</th><th>Ед. изм.</th><th class="text-right">Стоимость</th></tr>
+                <tr><td>Склейка</td><td>${totalArea.toFixed(2)} м²</td><td class="text-right">${totalGlue.toFixed(2)} ₽</td></tr>
+                <tr><td>Создание УП (ЧПУ)</td><td>${blockItems.length} шт</td><td class="text-right">${totalCncUp.toFixed(2)} ₽</td></tr>
+                <tr><td>ЧПУ Резка (Станок)</td><td>${blockItems.length} шт</td><td class="text-right">${totalCncCut.toFixed(2)} ₽</td></tr>
+                <tr><td>Шлифовка</td><td>${totalArea.toFixed(2)} м²</td><td class="text-right">${totalSanding.toFixed(2)} ₽</td></tr>
               </table>
 
-              <div class="sub-title">3. Покраска (${recipe.name})</div>
+              <div class="sub-title">3. Покраска (${recipe ? recipe.name : 'Без покраски'})</div>
               <table>
-                <tr><th>Этап</th><th>Расход</th><th class="text-right">Стоимость</th></tr>
-                ${stainCost > 0 ? `<tr><td>Тонировка</td><td>${recipe.stain.consumption} мл/м²</td><td class="text-right">${stainCost.toFixed(2)} ₽</td></tr>` : ''}
-                <tr><td>Грунт</td><td>${recipe.primer.consumption} мл/м²</td><td class="text-right">${primerCost.toFixed(2)} ₽</td></tr>
-                <tr><td>Лак</td><td>${recipe.lacquer.consumption} мл/м²</td><td class="text-right">${lacquerCost.toFixed(2)} ₽</td></tr>
+                <tr><th>Компонент / Этап</th><th>Объем / Расход</th><th class="text-right">Стоимость</th></tr>
+                ${paintDetailsHTML || '<tr><td colspan="3" style="text-align:center; color:#aaa;">Рецепт не выбран или отключен</td></tr>'}
               </table>
 
               <div class="summary">
@@ -261,7 +284,7 @@
                   <div class="controls">
                     <b>${mountingCost.toFixed(2)} ₽</b>
                     <span style="font-size:11px; color:#aaa;">+ надбавка:</span>
-                    <input type="number" placeholder="0" id="mountAddon">
+                    <input type="number" placeholder="0">
                   </div>
                 </div>
 
@@ -286,8 +309,7 @@
         document.getElementById('techCardBody').innerHTML = html;
 
       } catch (error) {
-        // Если что-то пойдет не так, мы увидим красную плашку с причиной!
-        document.getElementById('techCardBody').innerHTML = `<div class="error-box"><b>Ошибка в расчетах:</b><br>${error.message}<br><br><pre>${error.stack}</pre></div>`;
+        document.getElementById('techCardBody').innerHTML = `<div class="error-box"><b>Ошибка:</b><br>${error.message}<br><br><pre>${error.stack}</pre></div>`;
         console.error(error);
       }
     }
