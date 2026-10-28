@@ -31,6 +31,7 @@
     
     .controls { display: flex; align-items: center; gap: 10px; }
     .controls input { background: #0f1116; border: 1px solid #444; color: #fff; padding: 4px 8px; border-radius: 4px; width: 80px; text-align: right; }
+    .controls input:focus { outline: none; border-color: var(--accent); }
     
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
@@ -42,7 +43,7 @@
 
   <div class="modal">
     <div class="modal-header">
-      <h2 style="margin: 0; font-size: 20px;">📊 Технологическая карта (Расчет брусков)</h2>
+      <h2 style="margin: 0; font-size: 20px;">📊 Технологическая карта (Финальный тест)</h2>
     </div>
     <div class="modal-body" id="techCardBody">
       <div style="text-align: center; color: #aaa; padding: 20px;">Загрузка данных...</div>
@@ -62,7 +63,7 @@
   </div>
 
   <script>
-    // Мок XML (Реальные данные для визуального теста)
+    // Мок XML
     const xmlString = `
       <details>
         <detail name="1_Tr1">
@@ -80,15 +81,18 @@
       </details>
     `;
 
-    // Мок площади из DXF
     const dxfAreas = { "1_Tr1": 0.35, "1_Tr2": 0.50 };
 
     let prices = null;
+    
+    // Переменные для хранения введенных значений, чтобы они не сбрасывались при пересчете
+    let currentMarkup = null;
+    let currentMountAddon = 0;
 
     async function init() {
       try {
         const res = await fetch('production_prices.json');
-        if (!res.ok) throw new Error("Файл JSON не найден. Вы точно загрузили его на GitHub?");
+        if (!res.ok) throw new Error("Файл JSON не найден.");
         prices = await res.json();
         renderTechCard();
       } catch (e) {
@@ -115,23 +119,14 @@
           const subtype = el.getElementsByTagName("attribute")[0] ? el.getElementsByTagName("attribute")[0].getAttribute("value") : "straight";
           const length = parseFloat(el.getElementsByTagName("length")[0].textContent);
           const width = parseFloat(el.getElementsByTagName("width")[0].textContent);
-          const thickness = 40; // Фиксируем для теста
           
           const materialKey = "pine"; 
           const woodName = prices.woods[materialKey] ? prices.woods[materialKey].name : "Сосна";
 
-          // === МАТЕМАТИКА БРУСКОВ (ЛАМЕЛЕЙ) ===
-          // 1. Количество брусков = Ширина детали / 45 (округление вверх)
           const lathsCount = Math.ceil(width / 45);
-          
-          // 2. Длина заготовки = Длина детали + 100, округление вверх до 50
           const purchaseLength = Math.ceil((length + 100) / 50) * 50;
-          
-          // 3. Сечение заготовки = 50х50 мм
-          // 4. Объем всех брусков для этой детали
           const volume = (purchaseLength * 50 * 50 * lathsCount) / 1000000000; 
           
-          // Работы
           const coefType = subtype === "winder" ? "Step_winder" : "Step_straight";
           const complexityCoef = prices.detail_coefficients[coefType] ? prices.detail_coefficients[coefType].coef : 1.0;
           const woodCoef = prices.woods[materialKey] ? prices.woods[materialKey].workCoef : 1.0;
@@ -144,7 +139,6 @@
           const woodCost = volume * woodPrice;
           totalWood += woodCost;
 
-          // Отдельные работы
           const glueKey = purchaseLength > 2000 ? "glue_long" : "glue_short";
           const cGlue = (prices.works[glueKey]?.perUnit || 0) * paintArea * complexityCoef * woodCoef;
           const cCncUp = (prices.works.cnc_programming?.perUnit || 0) * complexityCoef;
@@ -155,7 +149,7 @@
 
           blockItems.push({
             name, subtype, woodName, 
-            dims: `${length}×${width}×${thickness}`, 
+            dims: `${length}×${width}×40`, 
             lathDims: `50×50×${purchaseLength}`, 
             lathsCount, volume, woodCost
           });
@@ -170,30 +164,42 @@
         if (recipe) {
           const processPaintBlock = (block, title) => {
             if (!block || !block.enabled) return '';
-            let blockCost = 0;
-            let rows = '';
             
+            // Считаем общий объем "кастрюли" и её общую стоимость
             let totalVol = 0, totalPrice = 0;
             block.components.forEach(c => {
               totalVol += c.volume;
               const inv = prices.paint_inventory[c.component];
               if (inv) totalPrice += (c.volume * (inv.pricePerLiter / 1000));
             });
+
+            // Сколько мл смеси нужно на этот блок
+            const mixtureNeeded = block.consumption * totalArea;
+            // Цена 1 мл смеси
             const pricePerMl = totalVol > 0 ? totalPrice / totalVol : 0;
             
+            // Стоимость этапа для этого блока
+            const blockCost = pricePerMl * mixtureNeeded;
+            paintCostTotal += blockCost;
+
+            let rows = '';
             block.components.forEach(c => {
               const inv = prices.paint_inventory[c.component];
-              const compName = inv ? inv.name : "Неизвестно";
-              const compCost = (c.volume * (inv ? inv.pricePerLiter / 1000 : 0));
+              if (!inv) return;
+
+              // Доля компонента в смеси
+              const proportion = c.volume / totalVol;
+              // Реальный расход этого компонента на блок (в мл)
+              const compVolUsed = mixtureNeeded * proportion;
+              // Стоимость этого компонента
+              const compCost = compVolUsed * (inv.pricePerLiter / 1000);
+
               rows += `<tr>
-                <td style="padding-left:20px;">${compName}</td>
-                <td>${c.volume} мл</td>
+                <td style="padding-left:20px;">${inv.name}</td>
+                <td>${compVolUsed.toFixed(1)} мл</td>
                 <td class="text-right">${compCost.toFixed(2)} ₽</td>
               </tr>`;
             });
-
-            blockCost = pricePerMl * block.consumption * totalArea;
-            paintCostTotal += blockCost;
 
             return `
               <tr style="background:#222;">
@@ -215,9 +221,14 @@
         const overheadsPerM2 = (prices.overheads?.production_norm_m2_per_day) ? ((prices.overheads.rent + (prices.overheads.electricity_price * prices.overheads.electricity_usage_kw * prices.overheads.working_days_per_month)) / (prices.overheads.production_norm_m2_per_day * prices.overheads.working_days_per_month)) : 0;
         const overheadsCost = overheadsPerM2 * totalArea;
 
-        const costPrice = totalWood + totalWorks + paintCostTotal + mountingCost + overheadsCost;
-        const markup = prices.settings?.markup_percent || 0;
-        const markupCost = costPrice * (markup / 100);
+        // Берем текущую наценку (если ее меняли)
+        if (currentMarkup === null) currentMarkup = prices.settings?.markup_percent || 0;
+        const markup = currentMarkup;
+        const markupCost = (costPrice + currentMountAddon) * (markup / 100);
+        
+        // Базовая себестоимость + монтаж
+        const costPrice = totalWood + totalWorks + paintCostTotal + mountingCost + overheadsCost + currentMountAddon;
+
         const usnPercent = prices.settings?.usn_percent || 6;
         const usnEnabled = document.getElementById('globalUsn').checked;
         const usnCost = usnEnabled ? (costPrice + markupCost) * (usnPercent / 100) : 0;
@@ -269,7 +280,7 @@
 
               <div class="sub-title">3. Покраска (${recipe ? recipe.name : 'Без покраски'})</div>
               <table>
-                <tr><th>Компонент / Этап</th><th>Объем / Расход</th><th class="text-right">Стоимость</th></tr>
+                <tr><th>Компонент / Этап</th><th>Реальный объем (на блок)</th><th class="text-right">Стоимость</th></tr>
                 ${paintDetailsHTML || '<tr><td colspan="3" style="text-align:center; color:#aaa;">Рецепт не выбран или отключен</td></tr>'}
               </table>
 
@@ -284,16 +295,24 @@
                   <div class="controls">
                     <b>${mountingCost.toFixed(2)} ₽</b>
                     <span style="font-size:11px; color:#aaa;">+ надбавка:</span>
-                    <input type="number" placeholder="0">
+                    <input type="number" id="mountInput" value="${currentMountAddon}" onchange="updateMountAddon(this.value)">
                   </div>
                 </div>
 
                 <div class="summary-row total">
                   <span>СЕБЕСТОИМОСТЬ:</span> <span>${costPrice.toFixed(2)} ₽</span>
                 </div>
-                <div class="summary-row">
-                  <span>Наценка (${markup}%):</span> <span>${markupCost.toFixed(2)} ₽</span>
+                
+                <div class="summary-row" style="align-items: center;">
+                  <span>Наценка (%):</span> 
+                  <div class="controls">
+                    <input type="number" id="markupInput" value="${markup}" onchange="updateMarkup(this.value)" style="width: 60px;">
+                  </div>
                 </div>
+                <div class="summary-row">
+                  <span>Сумма наценки:</span> <span>${markupCost.toFixed(2)} ₽</span>
+                </div>
+
                 <div class="summary-row">
                   <span>УСН (${usnPercent}%):</span> <span id="usnDisplay">${usnCost.toFixed(2)} ₽</span>
                 </div>
@@ -312,6 +331,17 @@
         document.getElementById('techCardBody').innerHTML = `<div class="error-box"><b>Ошибка:</b><br>${error.message}<br><br><pre>${error.stack}</pre></div>`;
         console.error(error);
       }
+    }
+
+    // Функции для обновления динамических полей
+    function updateMarkup(val) {
+      currentMarkup = parseFloat(val) || 0;
+      renderTechCard();
+    }
+
+    function updateMountAddon(val) {
+      currentMountAddon = parseFloat(val) || 0;
+      renderTechCard();
     }
 
     document.addEventListener('DOMContentLoaded', init);
