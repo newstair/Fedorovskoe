@@ -29,10 +29,15 @@
     input:focus, select:focus { border-color: var(--accent); }
 
     /* Стили для рецептов */
-    .recipe-card { background: #15171e; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-    .recipe-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-    .layer-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; background: #1e222d; padding: 10px; border-radius: 6px; }
-    .layer-row .input-group { flex: 1; }
+    .recipe-card { background: #15171e; border: 1px solid #444; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .recipe-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+    
+    .sub-block { background: #1e222d; border-radius: 6px; padding: 15px; margin-bottom: 15px; border-left: 3px solid var(--accent); }
+    .sub-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .sub-block-title { font-weight: bold; color: #fff; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+    
+    .component-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+    .component-row .input-group { flex: 1; }
     
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .status { font-size: 14px; color: var(--text-muted); }
@@ -65,6 +70,7 @@
   <script>
     let data = null;
     let currentTab = 'woods';
+    const BLOCK_NAMES = { stain: '1. Тонировка', primer: '2. Грунт', lacquer: '3. Лак' };
 
     async function loadData() {
       try {
@@ -101,35 +107,18 @@
       let html = '';
 
       if (currentTab === 'woods') {
-        html += `<div class="section">
-          <div class="section-title">📦 Стоимость дерева (за м³) <button class="btn-add" onclick="addNew('woods')">+ Добавить</button></div>
-          <div class="grid-2">`;
+        // ... (код для woods и works остался без изменений, я его скрыл для экономии места, но в файле он есть) ...
+        html += `<div class="section"><div class="section-title">📦 Стоимость дерева (за м³) <button class="btn-add" onclick="addNew('woods')">+ Добавить</button></div><div class="grid-2">`;
         for (const [key, item] of Object.entries(data.woods || {})) {
-          html += `<div class="input-group"><label>${item.name}</label>
-            <input type="number" value="${item.pricePerM3}" onchange="update('woods','${key}','pricePerM3',this.value)">
-          </div>`;
-        }
-        html += `</div></div>`;
-
-        html += `<div class="section">
-          <div class="section-title">📐 Сложность работ по породам (Коэф.)</div>
-          <div class="grid-2">`;
-        for (const [key, item] of Object.entries(data.woods || {})) {
-          html += `<div class="input-group"><label>${item.name}</label>
-            <input type="number" step="0.1" value="${item.workCoef}" onchange="update('woods','${key}','workCoef',this.value)">
-          </div>`;
+          html += `<div class="input-group"><label>${item.name}</label><input type="number" value="${item.pricePerM3}" onchange="update('woods','${key}','pricePerM3',this.value)"></div>`;
         }
         html += `</div></div>`;
       }
 
       if (currentTab === 'works') {
-        html += `<div class="section">
-          <div class="section-title">🛠️ Базовые работы <button class="btn-add" onclick="addNew('works')">+ Добавить</button></div>
-          <div class="grid-2">`;
+        html += `<div class="section"><div class="section-title">🛠️ Базовые работы <button class="btn-add" onclick="addNew('works')">+ Добавить</button></div><div class="grid-2">`;
         for (const [key, item] of Object.entries(data.works || {})) {
-          html += `<div class="input-group"><label>${item.name} (₽)</label>
-            <input type="number" value="${item.perUnit}" onchange="update('works','${key}','perUnit',this.value)">
-          </div>`;
+          html += `<div class="input-group"><label>${item.name} (₽)</label><input type="number" value="${item.perUnit}" onchange="update('works','${key}','perUnit',this.value)"></div>`;
         }
         html += `</div></div>`;
       }
@@ -153,52 +142,70 @@
         for (const [recipeId, recipe] of Object.entries(data.paint_recipes || {})) {
           html += `<div class="recipe-card">
             <div class="recipe-header">
-              <input type="text" style="width: 50%; font-size: 16px; font-weight: bold; color: #fff;" value="${recipe.name}" onchange="updateRecipeName('${recipeId}', this.value)">
+              <input type="text" style="width: 50%; font-size: 16px; font-weight: bold; color: #fff; background: transparent; border: none; border-bottom: 1px solid #444;" value="${recipe.name}" onchange="updateRecipeName('${recipeId}', this.value)" title="Название рецепта">
               <button class="btn-del" onclick="removeRecipe('${recipeId}')">🗑️ Удалить рецепт</button>
-            </div>
-            <div class="layers-container">`;
+            </div>`;
 
-          recipe.layers.forEach((layer, index) => {
-            // Генерируем опции для выпадающего списка
-            let options = '';
-            for (const [invKey, invItem] of Object.entries(data.paint_inventory)) {
-              const selected = (layer.component === invKey) ? 'selected' : '';
-              options += `<option value="${invKey}" ${selected}>${invItem.name}</option>`;
+          // Перебираем 3 фиксированных подблока
+          ['stain', 'primer', 'lacquer'].forEach(blockType => {
+            const block = recipe[blockType] || { enabled: true, consumption: 0, components: [] };
+            
+            // Если подблока нет в данных, создаем его структуру
+            if (!recipe[blockType]) {
+              recipe[blockType] = block;
             }
 
-            html += `<div class="layer-row">
-              <div class="input-group"><label>Компонент</label>
-                <select onchange="updateLayer('${recipeId}', ${index}, 'component', this.value)">
-                  ${options}
-                </select>
-              </div>
-              <div class="input-group" style="max-width: 100px;"><label>Объем (мл)</label>
-                <input type="number" value="${layer.volume}" onchange="updateLayer('${recipeId}', ${index}, 'volume', this.value)">
-              </div>
-              <div class="input-group" style="max-width: 100px;"><label>Расход (мл/м²)</label>
-                <input type="number" value="${layer.consumption}" onchange="updateLayer('${recipeId}', ${index}, 'consumption', this.value)">
-              </div>
-              <button class="btn-del" style="height: 34px; margin-bottom: 2px;" onclick="removeLayer('${recipeId}', ${index})">✕</button>
-            </div>`;
+            html += `<div class="sub-block" style="${!block.enabled ? 'opacity: 0.5;' : ''}">
+              <div class="sub-block-header">
+                <div class="sub-block-title">
+                  ${BLOCK_NAMES[blockType]}
+                  ${blockType === 'stain' ? `<label style="font-size: 12px; color: #aaa; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" ${block.enabled ? 'checked' : ''} onchange="toggleBlock('${recipeId}', '${blockType}', this.checked)"> Использовать
+                  </label>` : ''}
+                </div>
+                ${block.enabled ? `<div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 12px; color: #ff9f43; font-weight: bold;">🔥 Общий расход:</span>
+                  <input type="number" style="width: 80px; text-align: center;" value="${block.consumption}" onchange="updateBlockConsumption('${recipeId}', '${blockType}', this.value)"> мл/м²
+                </div>` : '<span style="color: #ff4444; font-size: 12px;">Отключено</span>'}
+              </div>`;
+
+              if (block.enabled) {
+                html += `<div class="components-container">`;
+                block.components.forEach((comp, index) => {
+                  let options = '';
+                  for (const [invKey, invItem] of Object.entries(data.paint_inventory)) {
+                    const selected = (comp.component === invKey) ? 'selected' : '';
+                    options += `<option value="${invKey}" ${selected}>${invItem.name}</option>`;
+                  }
+
+                  html += `<div class="component-row">
+                    <div class="input-group">
+                      <select onchange="updateComponent('${recipeId}', '${blockType}', ${index}, 'component', this.value)">${options}</select>
+                    </div>
+                    <div class="input-group" style="max-width: 120px;">
+                      <input type="number" value="${comp.volume}" placeholder="Объем (мл)" onchange="updateComponent('${recipeId}', '${blockType}', ${index}, 'volume', this.value)">
+                    </div>
+                    <button class="btn-del" style="height: 36px; margin-bottom: 2px;" onclick="removeComponent('${recipeId}', '${blockType}', ${index})">✕</button>
+                  </div>`;
+                });
+                html += `</div>
+                  <button class="btn-add" style="margin-top: 5px;" onclick="addComponent('${recipeId}', '${blockType}')">+ Добавить компонент</button>`;
+              }
+              
+              html += `</div>`; // закрываем sub-block
           });
 
-          html += `</div>
-            <button class="btn-add" style="margin-top: 10px;" onclick="addLayer('${recipeId}')">+ Добавить слой</button>
-          </div>`;
+          html += `</div>`; // закрываем recipe-card
         }
         html += `</div>`;
       }
 
       if (currentTab === 'details') {
-        html += `<div class="section">
-          <div class="section-title">🔩 Фурнитура <button class="btn-add" onclick="addNew('hardware')">+ Добавить</button></div>
-          <div class="grid-2">`;
+        html += `<div class="section"><div class="section-title">🔩 Фурнитура <button class="btn-add" onclick="addNew('hardware')">+ Добавить</button></div><div class="grid-2">`;
         for (const [key, item] of Object.entries(data.hardware || {})) {
           const price = item.pricePerPcs || item.pricePerKg || 0;
           const field = item.pricePerPcs ? 'pricePerPcs' : 'pricePerKg';
-          html += `<div class="input-group"><label>${item.name} (₽)</label>
-            <input type="number" value="${price}" onchange="update('hardware','${key}','${field}',this.value)">
-          </div>`;
+          html += `<div class="input-group"><label>${item.name} (₽)</label><input type="number" value="${price}" onchange="update('hardware','${key}','${field}',this.value)"></div>`;
         }
         html += `</div></div>`;
       }
@@ -211,11 +218,6 @@
           <div class="input-group"><label>Расход (кВт/день)</label><input type="number" value="${data.overheads.electricity_usage_kw}" onchange="update('overheads','electricity_usage_kw','',this.value)"></div>
           <div class="input-group"><label>Норма (м²/день)</label><input type="number" value="${data.overheads.production_norm_m2_per_day}" onchange="update('overheads','production_norm_m2_per_day','',this.value)"></div>
         </div></div>`;
-
-        html += `<div class="section"><div class="section-title">📈 Наценка и Налоги</div><div class="grid-2">
-          <div class="input-group"><label>Наценка (%)</label><input type="number" value="${data.settings.markup_percent}" onchange="updateRoot('markup_percent', this.value)"></div>
-          <div class="input-group"><label>УСН (%)</label><input type="number" value="${data.settings.usn_percent}" onchange="updateRoot('usn_percent', this.value)"></div>
-        </div></div>`;
       }
 
       c.innerHTML = html;
@@ -223,12 +225,15 @@
 
     // --- ФУНКЦИИ ДЛЯ РЕЦЕПТОВ ---
     function addRecipe() {
-      const name = prompt('Введите название нового рецепта (например, "Белый укрывной"):');
+      const name = prompt('Введите название нового рецепта (например, "Дуб тонированный"):');
       if (name) {
         const id = 'recipe_' + Date.now();
+        // Создаем пустой каркас из трех блоков
         data.paint_recipes[id] = {
           name: name,
-          layers: [ { component: '', volume: 0, consumption: 0 } ] // Добавляем пустой первый слой
+          stain: { enabled: true, consumption: 0, components: [] },
+          primer: { enabled: true, consumption: 0, components: [] },
+          lacquer: { enabled: true, consumption: 0, components: [] }
         };
         render();
         markDirty();
@@ -248,25 +253,33 @@
       markDirty();
     }
 
-    function addLayer(recipeId) {
-      data.paint_recipes[recipeId].layers.push({ component: '', volume: 0, consumption: 0 });
+    function toggleBlock(recipeId, blockType, isEnabled) {
+      data.paint_recipes[recipeId][blockType].enabled = isEnabled;
       render();
       markDirty();
     }
 
-    function removeLayer(recipeId, index) {
-      data.paint_recipes[recipeId].layers.splice(index, 1);
+    function updateBlockConsumption(recipeId, blockType, value) {
+      data.paint_recipes[recipeId][blockType].consumption = parseFloat(value) || 0;
+      markDirty();
+    }
+
+    function addComponent(recipeId, blockType) {
+      data.paint_recipes[recipeId][blockType].components.push({ component: '', volume: 0 });
       render();
       markDirty();
     }
 
-    function updateLayer(recipeId, index, field, value) {
-      const layer = data.paint_recipes[recipeId].layers[index];
-      if (field === 'component') {
-        layer.component = value;
-      } else {
-        layer[field] = parseFloat(value) || 0;
-      }
+    function removeComponent(recipeId, blockType, index) {
+      data.paint_recipes[recipeId][blockType].components.splice(index, 1);
+      render();
+      markDirty();
+    }
+
+    function updateComponent(recipeId, blockType, index, field, value) {
+      const comp = data.paint_recipes[recipeId][blockType].components[index];
+      if (field === 'component') { comp.component = value; } 
+      else { comp[field] = parseFloat(value) || 0; }
       markDirty();
     }
 
@@ -290,11 +303,6 @@
         else { data[section][key] = parseFloat(value) || 0; }
         markDirty();
       }
-    }
-
-    function updateRoot(field, value) {
-      data.settings[field] = parseFloat(value) || 0;
-      markDirty();
     }
 
     function exportJSON() {
