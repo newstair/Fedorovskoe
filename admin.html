@@ -12,16 +12,28 @@
     .tab-btn { background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s; }
     .tab-btn:hover { background: #222; }
     .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    
     .section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
     .section-title { font-size: 16px; font-weight: bold; color: var(--accent); margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed #444; padding-bottom: 10px; }
+    
     .btn-add { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
     .btn-add:hover { background: var(--accent); color: #fff; }
+    .btn-del { background: #ff4444; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
     .input-group { display: flex; flex-direction: column; gap: 5px; }
     .input-group label { font-size: 13px; color: var(--text-muted); }
-    input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
-    input:focus { outline: none; border-color: var(--accent); }
+    
+    input, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; outline: none; }
+    input:focus, select:focus { border-color: var(--accent); }
+
+    /* Стили для рецептов */
+    .recipe-card { background: #15171e; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+    .recipe-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .layer-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; background: #1e222d; padding: 10px; border-radius: 6px; }
+    .layer-row .input-group { flex: 1; }
+    
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .status { font-size: 14px; color: var(--text-muted); }
     .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
@@ -60,6 +72,8 @@
         data = await res.json();
         if(!data.settings) data.settings = { loss_board_percent: 0, loss_beam_percent: 0, markup_percent: 0, usn_percent: 0 };
         if(!data.overheads) data.overheads = { rent: 0, working_days_per_month: 0, electricity_price: 0, electricity_usage_kw: 0, production_norm_m2_per_day: 0 };
+        if(!data.paint_recipes) data.paint_recipes = {};
+        
         document.getElementById('statusText').innerText = 'Данные загружены';
         document.getElementById('statusText').style.color = '#aaa';
         render();
@@ -75,6 +89,11 @@
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       render();
+    }
+
+    function markDirty() {
+      document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
+      document.getElementById('statusText').style.color = '#ff9f43';
     }
 
     function render() {
@@ -101,15 +120,6 @@
           </div>`;
         }
         html += `</div></div>`;
-        
-        html += `<div class="section"><div class="section-title">📉 Потери (Коэффициенты)</div><div class="grid-2">
-          <div class="input-group"><label>Потери (Щиты) %</label>
-            <input type="number" value="${data.settings.loss_board_percent}" onchange="updateRoot('loss_board_percent', this.value)">
-          </div>
-          <div class="input-group"><label>Потери (Бруски) %</label>
-            <input type="number" value="${data.settings.loss_beam_percent}" onchange="updateRoot('loss_beam_percent', this.value)">
-          </div>
-        </div></div>`;
       }
 
       if (currentTab === 'works') {
@@ -125,6 +135,7 @@
       }
 
       if (currentTab === 'paint') {
+        // Склад
         html += `<div class="section">
           <div class="section-title">🎨 Склад (Цена за 1 литр) <button class="btn-add" onclick="addNew('paint_inventory')">+ Добавить</button></div>
           <div class="grid-3">`;
@@ -134,6 +145,48 @@
           </div>`;
         }
         html += `</div></div>`;
+
+        // Рецепты
+        html += `<div class="section">
+          <div class="section-title">🧪 Конструктор рецептов <button class="btn-add" onclick="addRecipe()">+ Создать рецепт</button></div>`;
+        
+        for (const [recipeId, recipe] of Object.entries(data.paint_recipes || {})) {
+          html += `<div class="recipe-card">
+            <div class="recipe-header">
+              <input type="text" style="width: 50%; font-size: 16px; font-weight: bold; color: #fff;" value="${recipe.name}" onchange="updateRecipeName('${recipeId}', this.value)">
+              <button class="btn-del" onclick="removeRecipe('${recipeId}')">🗑️ Удалить рецепт</button>
+            </div>
+            <div class="layers-container">`;
+
+          recipe.layers.forEach((layer, index) => {
+            // Генерируем опции для выпадающего списка
+            let options = '';
+            for (const [invKey, invItem] of Object.entries(data.paint_inventory)) {
+              const selected = (layer.component === invKey) ? 'selected' : '';
+              options += `<option value="${invKey}" ${selected}>${invItem.name}</option>`;
+            }
+
+            html += `<div class="layer-row">
+              <div class="input-group"><label>Компонент</label>
+                <select onchange="updateLayer('${recipeId}', ${index}, 'component', this.value)">
+                  ${options}
+                </select>
+              </div>
+              <div class="input-group" style="max-width: 100px;"><label>Объем (мл)</label>
+                <input type="number" value="${layer.volume}" onchange="updateLayer('${recipeId}', ${index}, 'volume', this.value)">
+              </div>
+              <div class="input-group" style="max-width: 100px;"><label>Расход (мл/м²)</label>
+                <input type="number" value="${layer.consumption}" onchange="updateLayer('${recipeId}', ${index}, 'consumption', this.value)">
+              </div>
+              <button class="btn-del" style="height: 34px; margin-bottom: 2px;" onclick="removeLayer('${recipeId}', ${index})">✕</button>
+            </div>`;
+          });
+
+          html += `</div>
+            <button class="btn-add" style="margin-top: 10px;" onclick="addLayer('${recipeId}')">+ Добавить слой</button>
+          </div>`;
+        }
+        html += `</div>`;
       }
 
       if (currentTab === 'details') {
@@ -168,7 +221,56 @@
       c.innerHTML = html;
     }
 
-    // Простая заглушка для добавления новых элементов
+    // --- ФУНКЦИИ ДЛЯ РЕЦЕПТОВ ---
+    function addRecipe() {
+      const name = prompt('Введите название нового рецепта (например, "Белый укрывной"):');
+      if (name) {
+        const id = 'recipe_' + Date.now();
+        data.paint_recipes[id] = {
+          name: name,
+          layers: [ { component: '', volume: 0, consumption: 0 } ] // Добавляем пустой первый слой
+        };
+        render();
+        markDirty();
+      }
+    }
+
+    function removeRecipe(recipeId) {
+      if (confirm('Вы уверены, что хотите удалить этот рецепт?')) {
+        delete data.paint_recipes[recipeId];
+        render();
+        markDirty();
+      }
+    }
+
+    function updateRecipeName(recipeId, value) {
+      data.paint_recipes[recipeId].name = value;
+      markDirty();
+    }
+
+    function addLayer(recipeId) {
+      data.paint_recipes[recipeId].layers.push({ component: '', volume: 0, consumption: 0 });
+      render();
+      markDirty();
+    }
+
+    function removeLayer(recipeId, index) {
+      data.paint_recipes[recipeId].layers.splice(index, 1);
+      render();
+      markDirty();
+    }
+
+    function updateLayer(recipeId, index, field, value) {
+      const layer = data.paint_recipes[recipeId].layers[index];
+      if (field === 'component') {
+        layer.component = value;
+      } else {
+        layer[field] = parseFloat(value) || 0;
+      }
+      markDirty();
+    }
+
+    // --- ОБЩИЕ ФУНКЦИИ ---
     function addNew(section) {
       const name = prompt('Введите название новой позиции:');
       if (name) {
@@ -178,8 +280,7 @@
         if (section === 'paint_inventory') data.paint_inventory[key] = { name: name, unit: 'l', pricePerLiter: 0 };
         if (section === 'hardware') data.hardware[key] = { name: name, pricePerPcs: 0 };
         render();
-        document.getElementById('statusText').innerText = 'Добавлена новая позиция!';
-        document.getElementById('statusText').style.color = '#31d0aa';
+        markDirty();
       }
     }
 
@@ -187,15 +288,13 @@
       if (data[section] && data[section][key]) {
         if (field) { data[section][key][field] = parseFloat(value) || 0; } 
         else { data[section][key] = parseFloat(value) || 0; }
-        document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
-        document.getElementById('statusText').style.color = '#ff9f43';
+        markDirty();
       }
     }
 
     function updateRoot(field, value) {
       data.settings[field] = parseFloat(value) || 0;
-      document.getElementById('statusText').innerText = 'Есть несохраненные изменения...';
-      document.getElementById('statusText').style.color = '#ff9f43';
+      markDirty();
     }
 
     function exportJSON() {
@@ -211,7 +310,7 @@
     }
 
     function closeAdmin() {
-      window.location.href = 'index.html'; // Или на главную страницу
+      window.location.href = 'index.html';
     }
 
     document.addEventListener('DOMContentLoaded', loadData);
