@@ -30,8 +30,8 @@
     .summary-row.final { color: #31d0aa; font-size: 18px; font-weight: bold; margin-top: 10px; }
     
     .controls { display: flex; align-items: center; gap: 10px; }
-    .controls input { background: #0f1116; border: 1px solid #444; color: #fff; padding: 4px 8px; border-radius: 4px; width: 80px; text-align: right; }
-    .controls input:focus { outline: none; border-color: var(--accent); }
+    .controls input[type="number"] { background: #0f1116; border: 1px solid #444; color: #fff; padding: 4px 8px; border-radius: 4px; width: 80px; text-align: right; }
+    .controls input[type="number"]:focus { outline: none; border-color: var(--accent); }
     
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
     .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
@@ -63,7 +63,6 @@
   </div>
 
   <script>
-    // Мок XML
     const xmlString = `
       <details>
         <detail name="1_Tr1">
@@ -85,15 +84,20 @@
 
     let prices = null;
     
-    // Переменные для хранения введенных значений, чтобы они не сбрасывались при пересчете
-    let currentMarkup = null;
-    let currentMountAddon = 0;
+    // Глобальное состояние для интерактивных полей
+    let state = {
+      markup: null,
+      mountAddon: 0,
+      includePaint: true,
+      includeMontage: true
+    };
 
     async function init() {
       try {
         const res = await fetch('production_prices.json');
         if (!res.ok) throw new Error("Файл JSON не найден.");
         prices = await res.json();
+        state.markup = prices.settings?.markup_percent || 40; // Берем из базы, если нет - 40
         renderTechCard();
       } catch (e) {
         document.getElementById('techCardBody').innerHTML = `<div class="error-box">Ошибка: ${e.message}</div>`;
@@ -157,7 +161,6 @@
 
         // === ПОКРАСКА ===
         let recipe = Object.values(prices.paint_recipes || {}).find(r => r.name.includes("Белый")) || Object.values(prices.paint_recipes || {})[0];
-        
         let paintCostTotal = 0;
         let paintDetailsHTML = '';
 
@@ -165,7 +168,6 @@
           const processPaintBlock = (block, title) => {
             if (!block || !block.enabled) return '';
             
-            // Считаем общий объем "кастрюли" и её общую стоимость
             let totalVol = 0, totalPrice = 0;
             block.components.forEach(c => {
               totalVol += c.volume;
@@ -173,12 +175,8 @@
               if (inv) totalPrice += (c.volume * (inv.pricePerLiter / 1000));
             });
 
-            // Сколько мл смеси нужно на этот блок
             const mixtureNeeded = block.consumption * totalArea;
-            // Цена 1 мл смеси
             const pricePerMl = totalVol > 0 ? totalPrice / totalVol : 0;
-            
-            // Стоимость этапа для этого блока
             const blockCost = pricePerMl * mixtureNeeded;
             paintCostTotal += blockCost;
 
@@ -186,14 +184,9 @@
             block.components.forEach(c => {
               const inv = prices.paint_inventory[c.component];
               if (!inv) return;
-
-              // Доля компонента в смеси
               const proportion = c.volume / totalVol;
-              // Реальный расход этого компонента на блок (в мл)
               const compVolUsed = mixtureNeeded * proportion;
-              // Стоимость этого компонента
               const compCost = compVolUsed * (inv.pricePerLiter / 1000);
-
               rows += `<tr>
                 <td style="padding-left:20px;">${inv.name}</td>
                 <td>${compVolUsed.toFixed(1)} мл</td>
@@ -215,24 +208,36 @@
           paintDetailsHTML += processPaintBlock(recipe.lacquer, '3. Лак');
         }
 
-        // === СВОДКА ===
+        // === СВОДКА И РАСЧЕТЫ ===
         const totalWorks = totalGlue + totalCncUp + totalCncCut + totalSanding;
-        const mountingCost = (prices.works.mounting?.base || 0) + ((prices.works.mounting?.perUnit || 0) * totalArea);
+        
+        // Накладные
         const overheadsPerM2 = (prices.overheads?.production_norm_m2_per_day) ? ((prices.overheads.rent + (prices.overheads.electricity_price * prices.overheads.electricity_usage_kw * prices.overheads.working_days_per_month)) / (prices.overheads.production_norm_m2_per_day * prices.overheads.working_days_per_month)) : 0;
         const overheadsCost = overheadsPerM2 * totalArea;
 
-        // Берем текущую наценку (если ее меняли)
-        if (currentMarkup === null) currentMarkup = prices.settings?.markup_percent || 0;
-        const markup = currentMarkup;
-        const markupCost = (costPrice + currentMountAddon) * (markup / 100);
-        
-        // Базовая себестоимость + монтаж
-        const costPrice = totalWood + totalWorks + paintCostTotal + mountingCost + overheadsCost + currentMountAddon;
+        // БАЗОВАЯ СЕБЕСТОИМОСТЬ (Дерево + Работы + Накладные)
+        const baseCost = totalWood + totalWorks + overheadsCost;
 
+        // МОНТАЖ
+        const mountingBaseCost = (prices.works.mounting?.base || 0) + ((prices.works.mounting?.perUnit || 0) * totalArea);
+        const activeMontage = state.includeMontage ? (mountingBaseCost + state.mountAddon) : 0;
+
+        // ПОКРАСКА
+        const activePaint = state.includePaint ? paintCostTotal : 0;
+
+        // ИТОГО ДО НАЦЕНКИ (Сумма всех активных опций)
+        const totalBeforeMarkup = baseCost + activePaint + activeMontage;
+
+        // НАЦЕНКА
+        const markupCost = totalBeforeMarkup * (state.markup / 100);
+        
+        // УСН
         const usnPercent = prices.settings?.usn_percent || 6;
         const usnEnabled = document.getElementById('globalUsn').checked;
-        const usnCost = usnEnabled ? (costPrice + markupCost) * (usnPercent / 100) : 0;
-        const finalPrice = costPrice + markupCost + usnCost;
+        const usnCost = usnEnabled ? (totalBeforeMarkup + markupCost) * (usnPercent / 100) : 0;
+        
+        // ФИНАЛЬНАЯ ЦЕНА
+        const finalPrice = totalBeforeMarkup + markupCost + usnCost;
 
         document.getElementById('grandTotal').innerText = finalPrice.toFixed(2) + ' ₽';
 
@@ -285,28 +290,43 @@
               </table>
 
               <div class="summary">
-                <div class="summary-row"><span>Итого дерево:</span> <b>${totalWood.toFixed(2)} ₽</b></div>
-                <div class="summary-row"><span>Итого работы:</span> <b>${totalWorks.toFixed(2)} ₽</b></div>
-                <div class="summary-row"><span>Итого покраска:</span> <b>${paintCostTotal.toFixed(2)} ₽</b></div>
-                <div class="summary-row"><span>Накладные (доля):</span> <b>${overheadsCost.toFixed(2)} ₽</b></div>
-                
-                <div class="summary-row" style="align-items: center;">
-                  <span>Монтаж (база + м2):</span> 
+                <div class="summary-row" style="border-bottom: 1px dashed #555; padding-bottom: 8px;">
+                  <span style="color:#aaa;">Базовая себестоимость (Дерево + Работы + Накладные):</span> 
+                  <b>${baseCost.toFixed(2)} ₽</b>
+                </div>
+                <div class="summary-row"><span>В т.ч. Дерево:</span> <b>${totalWood.toFixed(2)} ₽</b></div>
+                <div class="summary-row"><span>В т.ч. Работы:</span> <b>${totalWorks.toFixed(2)} ₽</b></div>
+                <div class="summary-row" style="margin-bottom: 15px;"><span>В т.ч. Накладные:</span> <b>${overheadsCost.toFixed(2)} ₽</b></div>
+
+                <!-- ОПЦИИ -->
+                <div class="summary-row" style="align-items: center; background: rgba(255,255,255,0.02); padding: 5px; border-radius: 4px;">
+                  <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: #ff9f43;">
+                    <input type="checkbox" id="chkPaint" ${state.includePaint ? 'checked' : ''} onchange="toggleOption('includePaint', this.checked)"> 
+                    Стоимость покраски:
+                  </label>
+                  <b>${paintCostTotal.toFixed(2)} ₽</b>
+                </div>
+
+                <div class="summary-row" style="align-items: center; background: rgba(255,255,255,0.02); padding: 5px; border-radius: 4px;">
+                  <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: #ff9f43;">
+                    <input type="checkbox" id="chkMount" ${state.includeMontage ? 'checked' : ''} onchange="toggleOption('includeMontage', this.checked)"> 
+                    Стоимость монтажа:
+                  </label>
                   <div class="controls">
-                    <b>${mountingCost.toFixed(2)} ₽</b>
+                    <b>${mountingBaseCost.toFixed(2)} ₽</b>
                     <span style="font-size:11px; color:#aaa;">+ надбавка:</span>
-                    <input type="number" id="mountInput" value="${currentMountAddon}" onchange="updateMountAddon(this.value)">
+                    <input type="number" value="${state.mountAddon}" onchange="updateMountAddon(this.value)" ${!state.includeMontage ? 'disabled' : ''}>
                   </div>
                 </div>
 
-                <div class="summary-row total">
-                  <span>СЕБЕСТОИМОСТЬ:</span> <span>${costPrice.toFixed(2)} ₽</span>
+                <div class="summary-row total" style="margin-top: 15px;">
+                  <span>ИТОГО СЕБЕСТОИМОСТЬ:</span> <span>${totalBeforeMarkup.toFixed(2)} ₽</span>
                 </div>
                 
                 <div class="summary-row" style="align-items: center;">
                   <span>Наценка (%):</span> 
                   <div class="controls">
-                    <input type="number" id="markupInput" value="${markup}" onchange="updateMarkup(this.value)" style="width: 60px;">
+                    <input type="number" value="${state.markup}" onchange="updateMarkup(this.value)" style="width: 60px;">
                   </div>
                 </div>
                 <div class="summary-row">
@@ -333,16 +353,10 @@
       }
     }
 
-    // Функции для обновления динамических полей
-    function updateMarkup(val) {
-      currentMarkup = parseFloat(val) || 0;
-      renderTechCard();
-    }
-
-    function updateMountAddon(val) {
-      currentMountAddon = parseFloat(val) || 0;
-      renderTechCard();
-    }
+    // Обновление состояний
+    function updateMarkup(val) { state.markup = parseFloat(val) || 0; renderTechCard(); }
+    function updateMountAddon(val) { state.mountAddon = parseFloat(val) || 0; renderTechCard(); }
+    function toggleOption(option, val) { state[option] = val; renderTechCard(); }
 
     document.addEventListener('DOMContentLoaded', init);
   </script>
