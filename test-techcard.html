@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Тест Техкарты</title>
+  <style>
+    :root { --accent: #5b8cff; --bg: #0f1116; --card-bg: #1a1d25; --border: #333; --text: #fff; --text-muted: #aaa; }
+    body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
+    
+    .modal { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; max-width: 900px; margin: 0 auto; overflow: hidden; }
+    .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 20px; }
+    
+    .block-card { background: #15171e; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+    .block-header { background: rgba(91, 140, 255, 0.1); padding: 12px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .block-title { font-size: 16px; font-weight: bold; color: var(--accent); }
+    .block-meta { font-size: 12px; background: #333; padding: 4px 8px; border-radius: 4px; }
+    
+    .sub-title { font-size: 14px; font-weight: bold; color: #aaa; margin: 20px 0 10px; border-bottom: 1px dashed #444; padding-bottom: 5px; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; table-layout: fixed; }
+    th { text-align: left; padding: 8px; background: #222; color: #aaa; border: 1px solid #444; font-weight: normal; word-break: break-word; }
+    td { padding: 8px; border: 1px solid #444; word-break: break-word; }
+    .text-right { text-align: right; }
+    
+    .summary { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border: 1px solid #444; margin-top: 20px; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+    .summary-row.total { color: #ff9f43; font-size: 15px; font-weight: bold; border-top: 1px dashed #555; padding-top: 8px; }
+    .summary-row.final { color: #31d0aa; font-size: 18px; font-weight: bold; margin-top: 10px; }
+    
+    .controls { display: flex; align-items: center; gap: 10px; }
+    .controls input { background: #0f1116; border: 1px solid #444; color: #fff; padding: 4px 8px; border-radius: 4px; width: 80px; text-align: right; }
+    
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+    .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="modal">
+    <div class="modal-header">
+      <h2 style="margin: 0; font-size: 20px;">📊 Технологическая карта (Тест)</h2>
+    </div>
+    <div class="modal-body" id="techCardBody">
+      <!-- Сюда рендерится JS -->
+    </div>
+  </div>
+
+  <!-- ГЛОБАЛЬНЫЕ НАСТРОЙКИ ВНИЗУ -->
+  <div class="footer">
+    <div style="display: flex; gap: 20px; align-items: center;">
+      <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="globalUsn" onchange="renderTechCard()"> Применить УСН 6%
+      </label>
+      <div style="font-size: 16px; font-weight: bold;">
+        ИТОГО: <span id="grandTotal" style="color: #31d0aa;">0.00 ₽</span>
+      </div>
+    </div>
+    <button class="btn">🖨️ Печать</button>
+  </div>
+
+  <script>
+    // 1. Мок XML (взяли реальный кусок из вашего файла)
+    const xmlString = `
+      <details>
+        <detail name="1_Tr1">
+          <type id="Step">Ступень</type>
+          <attributes><attribute name="subtype" type="string" value="straight"/></attributes>
+          <dim text="40 x 945 x 341"><length>945</length><width>341</width></dim>
+          <material>PINE</material>
+        </detail>
+        <detail name="1_Tr2">
+          <type id="Step">Ступень</type>
+          <attributes><attribute name="subtype" type="string" value="winder"/></attributes>
+          <dim text="40 x 945 x 364"><length>945</length><width>364</width></dim>
+          <material>PINE</material>
+        </detail>
+      </details>
+    `;
+
+    // 2. Мок площади из DXF (так как парсера DXF еще нет)
+    // Допустим, 1_Tr1 имеет площадь 0.3 м2, а 1_Tr2 - 0.35 м2 (с одной стороны)
+    const dxfAreas = {
+      "1_Tr1": 0.3,
+      "1_Tr2": 0.35
+    };
+
+    let prices = null;
+
+    async function init() {
+      const res = await fetch('production_prices.json');
+      prices = await res.json();
+      renderTechCard();
+    }
+
+    function renderTechCard() {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+      const details = xmlDoc.getElementsByTagName("detail");
+
+      let blockItems = [];
+      let totalArea = 0;
+
+      // Парсим детали
+      for (let i = 0; i < details.length; i++) {
+        const el = details[i];
+        if (el.getElementsByTagName("type")[0].getAttribute("id") !== "Step") continue;
+
+        const name = el.getAttribute("name");
+        const subtype = el.getElementsByTagName("attribute")[0] ? el.getElementsByTagName("attribute")[0].getAttribute("value") : "straight";
+        const length = parseFloat(el.getElementsByTagName("length")[0].textContent);
+        const width = parseFloat(el.getElementsByTagName("width")[0].textContent);
+        
+        // Берем материал из XML (пока сосна)
+        const materialKey = "pine"; 
+        
+        // --- МАТЕМАТИКА ДЕРЕВА ---
+        // Прибавка 100мм и округление вверх до 50
+        const purchaseLength = Math.ceil((length + 100) / 50) * 50; 
+        const volume = (purchaseLength * 50 * 50) / 1000000000; // в м3
+        
+        // --- МАТЕМАТИКА РАБОТ ---
+        // Коэффициент сложности (прямая 1.0, забежная 1.2)
+        const complexityCoef = prices.detail_coefficients[subtype === "winder" ? "Step_winder" : "Step_straight"].coef;
+        const woodCoef = prices.woods[materialKey].workCoef;
+
+        const area = dxfAreas[name] || 0;
+        const paintArea = area * 2; // с двух сторон
+        totalArea += paintArea;
+
+        // Считаем работы для одной детали (для простоты суммируем все работы из JSON)
+        let worksCost = 0;
+        // Склейка (используем длинную, если > 2000)
+        const glueKey = purchaseLength > 2000 ? "glue_long" : "glue_short";
+        worksCost += (prices.works[glueKey].perUnit * paintArea * complexityCoef * woodCoef);
+        // Калибровка
+        worksCost += (prices.works.calibration.perUnit * paintArea * complexityCoef * woodCoef);
+        // ЧПУ
+        worksCost += (prices.works.cnc_programming.perUnit + prices.works.cnc_cutting.perUnit) * complexityCoef;
+        // Шлифовка
+        worksCost += (prices.works.sanding.perUnit * paintArea * complexityCoef * woodCoef);
+
+        const woodCost = volume * prices.woods[materialKey].pricePerM3;
+
+        blockItems.push({
+          name, subtype, dims: `${length}x${width}`, purchaseLength, volume, 
+          woodCost, worksCost, paintArea
+        });
+      }
+
+      // --- МАТЕМАТИКА ПОКРАСКИ (Белый укрывной) ---
+      const recipe = prices.paint_recipes.white; 
+      let paintCostTotal = 0;
+
+      // Считаем стоимость 1 мл готовой смеси для каждого этапа
+      const calcBlockCost = (block) => {
+        if (!block.enabled) return 0;
+        let totalVolume = 0;
+        let totalPrice = 0;
+        block.components.forEach(c => {
+          totalVolume += c.volume;
+          totalPrice += (c.volume * (prices.paint_inventory[c.component].pricePerLiter / 1000));
+        });
+        const pricePerMl = totalPrice / totalVolume;
+        return pricePerMl * block.consumption * totalArea;
+      };
+
+      const stainCost = calcBlockCost(recipe.stain);
+      const primerCost = calcBlockCost(recipe.primer);
+      const lacquerCost = calcBlockCost(recipe.lacquer);
+      paintCostTotal = stainCost + primerCost + lacquerCost;
+
+      // --- СВОДКА ---
+      const totalWood = blockItems.reduce((sum, item) => sum + item.woodCost, 0);
+      const totalWorks = blockItems.reduce((sum, item) => sum + item.worksCost, 0);
+      
+      // Монтаж (База + за м2)
+      const mountingCost = prices.works.mounting.base + (prices.works.mounting.perUnit * totalArea);
+      
+      // Накладные (примерно: (Аренда + Свет) / Норма м2/день * Площадь)
+      const overheadsPerM2 = (prices.overheads.rent + (prices.overheads.electricity_price * prices.overheads.electricity_usage_kw * prices.overheads.working_days_per_month)) / (prices.overheads.production_norm_m2_per_day * prices.overheads.working_days_per_month);
+      const overheadsCost = overheadsPerM2 * totalArea;
+
+      const costPrice = totalWood + totalWorks + paintCostTotal + mountingCost + overheadsCost;
+      
+      const markup = prices.settings.markup_percent;
+      const markupCost = costPrice * (markup / 100);
+      
+      const usnEnabled = document.getElementById('globalUsn').checked;
+      const usnCost = usnEnabled ? (costPrice + markupCost) * (prices.settings.usn_percent / 100) : 0;
+      
+      const finalPrice = costPrice + markupCost + usnCost;
+
+      document.getElementById('grandTotal').innerText = finalPrice.toFixed(2) + ' ₽';
+
+      // --- РЕНДЕР HTML ---
+      let rowsHTML = '';
+      blockItems.forEach(item => {
+        rowsHTML += `<tr>
+          <td>${item.name}</td>
+          <td>${item.subtype === 'winder' ? 'Забежная' : 'Прямая'}</td>
+          <td>${item.dims} (загот. ${item.purchaseLength})</td>
+          <td>${item.volume.toFixed(4)}</td>
+          <td class="text-right">${item.woodCost.toFixed(2)} ₽</td>
+        </tr>`;
+      });
+
+      const html = `
+        <div class="block-card">
+          <div class="block-header">
+            <div class="block-title">📦 БЛОК: СТУПЕНИ (${blockItems.length} шт)</div>
+            <div class="block-meta">🔵 Материал: Сосна | 🎨 Покраска: Белый укрывной</div>
+          </div>
+          <div style="padding: 15px;">
+            
+            <div class="sub-title">1. Детали и Дерево</div>
+            <table>
+              <tr><th>Деталь</th><th>Тип</th><th>Габариты (мм)</th><th>Объем м³</th><th class="text-right">Стоимость</th></tr>
+              ${rowsHTML}
+            </table>
+
+            <div class="sub-title">2. Работы (с учетом коэф.)</div>
+            <table>
+              <tr><th>Операция</th><th>Объем</th><th class="text-right">Стоимость</th></tr>
+              <tr><td>Склейка / Калибровка / Шлифовка</td><td>${totalArea.toFixed(2)} м²</td><td class="text-right">${totalWorks.toFixed(2)} ₽</td></tr>
+            </table>
+
+            <div class="sub-title">3. Покраска (Белый укрывной)</div>
+            <table>
+              <tr><th>Этап</th><th>Расход</th><th class="text-right">Стоимость</th></tr>
+              ${stainCost > 0 ? `<tr><td>Тонировка</td><td>${recipe.stain.consumption} мл/м²</td><td class="text-right">${stainCost.toFixed(2)} ₽</td></tr>` : ''}
+              <tr><td>Грунт</td><td>${recipe.primer.consumption} мл/м²</td><td class="text-right">${primerCost.toFixed(2)} ₽</td></tr>
+              <tr><td>Лак</td><td>${recipe.lacquer.consumption} мл/м²</td><td class="text-right">${lacquerCost.toFixed(2)} ₽</td></tr>
+            </table>
+
+            <div class="summary">
+              <div class="summary-row"><span>Итого дерево:</span> <b>${totalWood.toFixed(2)} ₽</b></div>
+              <div class="summary-row"><span>Итого работы:</span> <b>${totalWorks.toFixed(2)} ₽</b></div>
+              <div class="summary-row"><span>Итого покраска:</span> <b>${paintCostTotal.toFixed(2)} ₽</b></div>
+              <div class="summary-row"><span>Накладные (доля):</span> <b>${overheadsCost.toFixed(2)} ₽</b></div>
+              
+              <div class="summary-row" style="align-items: center;">
+                <span>Монтаж (база + м2):</span> 
+                <div class="controls">
+                  <b>${mountingCost.toFixed(2)} ₽</b>
+                  <span style="font-size:11px; color:#aaa;">+ надбавка:</span>
+                  <input type="number" placeholder="0" id="mountAddon" oninput="updateMounting(${costPrice}, ${markup})">
+                </div>
+              </div>
+
+              <div class="summary-row total">
+                <span>СЕБЕСТОИМОСТЬ:</span> <span>${costPrice.toFixed(2)} ₽</span>
+              </div>
+              <div class="summary-row">
+                <span>Наценка (${markup}%):</span> <span>${markupCost.toFixed(2)} ₽</span>
+              </div>
+              <div class="summary-row">
+                <span>УСН (6%):</span> <span id="usnDisplay">${usnCost.toFixed(2)} ₽</span>
+              </div>
+              <div class="summary-row final">
+                <span>🔥 ЦЕНА В КАЛЬКУЛЯТОР:</span> <span id="finalPriceDisplay">${finalPrice.toFixed(2)} ₽</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      document.getElementById('techCardBody').innerHTML = html;
+    }
+
+    // Функция для пересчета при вводе надбавки за монтаж
+    function updateMounting(baseCost, markup) {
+      // В реальном коде здесь будет более сложная логика с пересборкой всех сумм,
+      // но для теста просто покажем, что поле работает.
+      console.log("Надбавка за монтаж изменена");
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
