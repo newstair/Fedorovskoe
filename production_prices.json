@@ -1,0 +1,428 @@
+{
+  "woods": {
+    "pine": {
+      "name": "Сосна",
+      "pricePerM3": 32000,
+      "workCoef": 1
+    },
+    "beech": {
+      "name": "Бук",
+      "pricePerM3": 85000,
+      "workCoef": 1.6
+    },
+    "ash": {
+      "name": "Ясень",
+      "pricePerM3": 126000,
+      "workCoef": 1.7
+    },
+    "oak": {
+      "name": "Дуб",
+      "pricePerM3": 190000,
+      "workCoef": 1.9
+    }
+  },
+  "detail_coefficients": {
+    "Step_straight": {
+      "name": "Ступень прямая",
+      "coef": 1
+    },
+    "Step_winder": {
+      "name": "Ступень забежная",
+      "coef": 1.2
+    },
+    "String": {
+      "name": "Тетива",
+      "coef": 1.3
+    },
+    "Riser": {
+      "name": "Подступенок",
+      "coef": 1
+    },
+    "Newel": {
+      "name": "Столб",
+      "coef": 1.1
+    },
+    "Handrail": {
+      "name": "Поручень",
+      "coef": 1.2
+    },
+    "Baluster": {
+      "name": "Балясина",
+      "coef": 1
+    }
+  },
+  "works": {
+    "glue_short": {
+      "name": "Склейка (до 2м)",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 1800
+    },
+    "glue_long": {
+      "name": "Склейка (>2м)",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 2100
+    },
+    "calibration": {
+      "name": "Калибровка",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 300
+    },
+    "cnc_programming": {
+      "name": "Создание УП (ЧПУ)",
+      "unit": "pcs",
+      "base": 1000,
+      "perUnit": 250
+    },
+    "cnc_cutting": {
+      "name": "ЧПУ Резка (Станок)",
+      "unit": "pcs",
+      "base": 0,
+      "perUnit": 300
+    },
+    "sanding": {
+      "name": "Шлифовка (База)",
+      "unit": "m2",
+      "base": 0,
+      "perUnit": 450
+    },
+    "mounting": {
+      "name": "Монтаж",
+      "unit": "m2",
+      "base": 5000,
+      "perUnit": 800
+    }
+  },
+  "paint_inventory": {
+    "primer_clear": {
+      "name": "Грунт прозрачный",
+      "unit": "l",
+      "pricePerLiter": 1200
+    },
+    "primer_white": {
+      "name": "Грунт белый",
+      "unit": "l",
+      "pricePerLiter": 1100
+    },
+    "hardener_clear": {
+      "name": "Отвердитель (прозрачный)",
+      "unit": "l",
+      "pricePerLiter": 1250
+    },
+    "hardener_white": {
+      "name": "Отвердитель (белый)",
+      "unit": "l",
+      "pricePerLiter": 1200
+    },
+    "lacquer": {
+      "name": "Лак бесцветный",
+      "unit": "l",
+      "pricePerLiter": 1200
+    },
+    "hardener_lacquer": {
+      "name": "Отвердитель для лака",
+      "unit": "l",
+      "pricePerLiter": 1200
+    },
+    "thinner_646": {
+      "name": "Растворитель 646",
+      "unit": "l",
+      "pricePerLiter": 450
+    },
+    "thinner_420": {
+      "name": "Растворитель 420",
+      "unit": "l",
+      "pricePerLiter": 540
+    },
+    "toner_white": {
+      "name": "Тон белый",
+      "unit": "l",
+      "pricePerLiter": 1750
+    },
+    "colorant_oak": {
+      "name": "Колер (Орех)",
+      "unit": "l",
+      "pricePerLiter": 1450
+    },
+    "colorant_walnut": {
+      "name": "Колер (Венге)",
+      "unit": "l",
+      "pricePerLiter": 1650
+    }
+  },
+  "paint_recipes": {
+    "clear": {
+      "name": "Бесцветный",
+      "layers": [
+        {
+          "component": "primer_clear",
+          "volume": 1000,
+          "consumption": 250
+        },
+        {
+          "component": "hardener_clear",
+          "volume": 450,
+          "consumption": 112.5
+        },
+        {
+          "component": "thinner_420",
+          "volume": 350,
+          "consumption": 87.5
+        },
+        {
+          "component": "lacquer",
+          "volume": 1000,
+          "consumption": 200
+        },
+        {
+          "component": "hardener_lacquer",
+          "volume": 450,
+          "consumption": 90
+        },
+        {
+          "component": "thinner_420",
+          "volume": 250,
+          "consumption": 50
+        }
+      ],
+      "stain": {
+        "enabled": false,
+        "consumption": 350,
+        "components": []
+      },
+      "primer": {
+        "enabled": true,
+        "consumption": 250,
+        "components": [
+          {
+            "component": "",
+            "volume": 1000
+          },
+          {
+            "component": "hardener_clear",
+            "volume": 450
+          },
+          {
+            "component": "thinner_420",
+            "volume": 350
+          }
+        ]
+      },
+      "lacquer": {
+        "enabled": true,
+        "consumption": 0,
+        "components": [
+          {
+            "component": "lacquer",
+            "volume": 1000
+          },
+          {
+            "component": "hardener_lacquer",
+            "volume": 450
+          },
+          {
+            "component": "thinner_420",
+            "volume": 250
+          }
+        ]
+      }
+    },
+    "white": {
+      "name": "Белый укрывной",
+      "layers": [
+        {
+          "component": "primer_white",
+          "volume": 1000,
+          "consumption": 250
+        },
+        {
+          "component": "hardener_white",
+          "volume": 450,
+          "consumption": 112.5
+        },
+        {
+          "component": "thinner_420",
+          "volume": 350,
+          "consumption": 87.5
+        },
+        {
+          "component": "lacquer",
+          "volume": 1000,
+          "consumption": 200
+        },
+        {
+          "component": "hardener_lacquer",
+          "volume": 450,
+          "consumption": 90
+        },
+        {
+          "component": "thinner_420",
+          "volume": 250,
+          "consumption": 50
+        },
+        {
+          "component": "toner_white",
+          "volume": 250,
+          "consumption": 50
+        }
+      ],
+      "stain": {
+        "enabled": false,
+        "consumption": 0,
+        "components": []
+      },
+      "primer": {
+        "enabled": true,
+        "consumption": 300,
+        "components": [
+          {
+            "component": "primer_white",
+            "volume": 1000
+          },
+          {
+            "component": "hardener_white",
+            "volume": 450
+          },
+          {
+            "component": "thinner_420",
+            "volume": 250
+          }
+        ]
+      },
+      "lacquer": {
+        "enabled": true,
+        "consumption": 0,
+        "components": [
+          {
+            "component": "lacquer",
+            "volume": 1000
+          },
+          {
+            "component": "hardener_clear",
+            "volume": 450
+          },
+          {
+            "component": "toner_white",
+            "volume": 250
+          },
+          {
+            "component": "thinner_420",
+            "volume": 150
+          }
+        ]
+      }
+    },
+    "recipe_1793192736533": {
+      "name": "Орех",
+      "stain": {
+        "enabled": true,
+        "consumption": 350,
+        "components": [
+          {
+            "component": "colorant_oak",
+            "volume": 1000
+          },
+          {
+            "component": "thinner_646",
+            "volume": 1000
+          }
+        ]
+      },
+      "primer": {
+        "enabled": true,
+        "consumption": 250,
+        "components": [
+          {
+            "component": "",
+            "volume": 1000
+          },
+          {
+            "component": "hardener_clear",
+            "volume": 450
+          },
+          {
+            "component": "thinner_420",
+            "volume": 250
+          }
+        ]
+      },
+      "lacquer": {
+        "enabled": true,
+        "consumption": 220,
+        "components": [
+          {
+            "component": "lacquer",
+            "volume": 1000
+          },
+          {
+            "component": "hardener_lacquer",
+            "volume": 450
+          },
+          {
+            "component": "thinner_420",
+            "volume": 250
+          },
+          {
+            "component": "colorant_oak",
+            "volume": 150
+          }
+        ]
+      }
+    }
+  },
+  "turnings": {
+    "bal01": {
+      "name": "Bal01",
+      "diameter": 30,
+      "length": 870,
+      "pricePerPcs": 1500
+    }
+  },
+  "hardware": {
+    "bolt_m10_140": {
+      "name": "Болт М10*140",
+      "pricePerPcs": 34
+    },
+    "bolt_m6_80": {
+      "name": "Болт М6*80",
+      "pricePerPcs": 18
+    },
+    "bolt_m6_120": {
+      "name": "Болт М6*120",
+      "pricePerPcs": 26
+    },
+    "glue_kg": {
+      "name": "Клей столярный",
+      "pricePerKg": 600
+    }
+  },
+  "plugs": {
+    "Step": {
+      "name": "Заглушки на Ступень",
+      "qtyPerItem": 2
+    },
+    "Handrail": {
+      "name": "Заглушки на Поручень",
+      "qtyPerItem": 2
+    },
+    "Post": {
+      "name": "Заглушки на Столб",
+      "qtyPerItem": 4
+    }
+  },
+  "overheads": {
+    "rent": 50000,
+    "electricity_price": 7.5,
+    "electricity_usage_kw": 30,
+    "working_days_per_month": 22,
+    "production_norm_m2_per_day": 5
+  },
+  "settings": {
+    "loss_board_percent": 15,
+    "loss_beam_percent": 20,
+    "markup_percent": 40,
+    "usn_percent": 6
+  }
+}
